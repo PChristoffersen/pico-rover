@@ -1,0 +1,25 @@
+{
+  "cmake.configureOnOpen": false,
+  "cmake.statusbar.advanced": {
+    "debug" : {
+      "visibility": "hidden"
+              },    "launch" : {
+      "visibility": "hidden"
+               },
+    "build" : {
+      "visibility": "hidden"
+               },
+    "buildTarget" : {
+      "visibility": "hidden"
+               },
+    },
+    "files.associations": {
+      "stdlib.h": "c",
+      "boardconfig.h": "c",
+      "quadrature_encoder.pio.h": "c",
+      "binary_info.h": "c",
+      "string.h": "c",
+      "watchdog.h": "c",
+      "i2c.h": "c"
+    },
+}

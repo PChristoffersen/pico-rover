@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "marus25.cortex-debug",
+    "chris-hock.pioasm",
+    "ms-vscode.cmake-tools",
+    "ms-vscode.cpptools",
+  ]
+}
