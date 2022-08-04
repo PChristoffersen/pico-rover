@@ -1,7 +1,7 @@
 /**
  * @author Peter Christoffersen
- * @brief Board health monitor 
- * @date 2022-07-24
+ * @brief BNO055 IMU
+ * @date 2022-08-02
  * 
  * @copyright Copyright (c) 2022
  * 
@@ -14,13 +14,11 @@
 extern "C" {
 #endif
 
+void bno055_init();
 
-void board_adc_init();
-void board_adc_update();
 
-float board_adc_battery_get();
-float board_adc_vsys_get();
-float board_adc_temp_get();
+void bno055_update();
+
 
 #ifdef __cplusplus
 }

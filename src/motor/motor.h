@@ -8,51 +8,53 @@
  */
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <pico/stdlib.h>
+#include <pico/mutex.h>
 
 #include "quadrature_encoder.pio.h"
 #include "../boardconfig.h"
 
 
-typedef enum {
-    MOTOR_1 = 0u,
-    MOTOR_2 = 1u,
-    MOTOR_3 = 2u,
-    MOTOR_4 = 3u,
-} motor_t;
+class Motor {
+    public: 
+        using duty_value_t = float;
+        using encoder_value_t = int32_t;
 
 
-void motor_init();
-void motor_setup();
-void motor_set_supply_voltage(float voltage);
-void motor_set_drivers_enabled(bool enabled);
+        Motor(uint in1_pin, uint in2_pin, uint enca_pin, uint encb_pin);
+        Motor(const Motor&) = delete; // No copy constructor
+        Motor(Motor&&) = delete; // No move constructor
 
-void motor_set_enabled(motor_t motor, bool enabled);
-void motor_put(motor_t motor, float duty);
+        void init();
 
+        void set_enabled(bool enabled);
+        void put(float duty);
 
-static inline void motor_encoder_fetch_request(motor_t motor)
-{
-    quadrature_encoder_request_count(MOTOR_ENCODER_PIO, motor);
-}
+        void encoder_fetch_request() { quadrature_encoder_request_count(MOTOR_ENCODER_PIO, m_encoder_index); }
+        encoder_value_t encoder_fetch() { return quadrature_encoder_fetch_count(MOTOR_ENCODER_PIO, m_encoder_index); }
+        encoder_value_t encoder_get() { return quadrature_encoder_get_count(MOTOR_ENCODER_PIO, m_encoder_index); }
 
-static inline int32_t motor_encoder_fetch(motor_t motor)
-{
-    return quadrature_encoder_fetch_count(MOTOR_ENCODER_PIO, motor);
-}
+        static void set_supply_voltage(float voltage);
 
-static inline int32_t motor_encoder_get(motor_t motor)
-{
-    return quadrature_encoder_get_count(MOTOR_ENCODER_PIO, motor);
-}
+    private:
+        uint m_in1_pin;
+        uint m_in2_pin;
+        uint m_enca_pin;
+        uint m_encb_pin;
 
+        uint m_slice;
+        uint m_encoder_index;
 
+        mutex_t m_mutex;
 
-#ifdef __cplusplus
-}
-#endif
+        bool m_enabled;
+        float m_duty;
+
+        void update_duty();
+
+        static uint m_encoder_program_offset;
+        static float m_supply_voltage;
+        static void global_init();
+};
+
 

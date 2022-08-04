@@ -11,18 +11,25 @@
 #include <stdio.h>
 #include <pico/stdlib.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+class LED {
+    public:
+        LED(uint pin);
+        LED(const LED&) = delete; // No copy constructor
+        LED(LED&&) = delete; // No move constructor
 
-void led_init();
+        void init();
 
-void led_on();
-void led_off();
-void led_blink();
-void led_update();
+        void on();
+        void off();
+        void blink();
 
-#ifdef __cplusplus
-}
-#endif
+        absolute_time_t update();
+
+    private:
+        static constexpr int64_t BLINK_INTERVAL = 500000u;
+
+        uint m_pin;
+        bool m_blinking;
+        absolute_time_t m_blink_last;
+};
 

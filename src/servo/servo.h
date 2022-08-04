@@ -11,20 +11,30 @@
 #include <stdio.h>
 #include <pico/stdlib.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-typedef enum {
-    SERVO_1 = 0u,
-    SERVO_2 = 1u,
-} servo_t;
+class Servo {
+    public:
+        using value_t = uint16_t;
 
-void servo_init();
-void servo_set_enabled(servo_t servo, bool enabled);
-void servo_put(servo_t servo, uint16_t us);
+        Servo(uint pin);
+        Servo(const Servo&) = delete; // No copy constructor
+        Servo(Servo&&) = delete; // No move constructor
 
-#ifdef __cplusplus
-}
-#endif
+        void init();
+
+        void set_enabled(bool enabled);
+
+        void put(value_t us);
+
+    private:
+        static constexpr value_t INITIAL_POSITION = 1500u;
+
+        uint m_pin;
+        bool m_enabled;
+
+        uint m_slice;
+        uint m_channel;
+
+        value_t m_value;
+};
 

@@ -20,6 +20,9 @@
       "binary_info.h": "c",
       "string.h": "c",
       "watchdog.h": "c",
-      "i2c.h": "c"
+      "i2c.h": "c",
+      "cstring": "c",
+      "array": "cpp",
+      "memory": "cpp"
     },
 }

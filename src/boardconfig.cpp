@@ -60,4 +60,4 @@ bi_decl(bi_1pin_with_func(BOARD_I2C_SDA_PIN, GPIO_FUNC_I2C));
 bi_decl(bi_1pin_with_name(BOARD_I2C_SCL_PIN, "I2C SCL"));
 bi_decl(bi_1pin_with_func(BOARD_I2C_SCL_PIN, GPIO_FUNC_I2C));
 
-bi_decl(bi_1pin_with_name(GENERIC_INTR_PIN, "Generic IO 0"));
+bi_decl(bi_1pin_with_name(BOARD_GPIO0_PIN, "Generic IO 0"));

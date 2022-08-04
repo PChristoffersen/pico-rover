@@ -9,7 +9,7 @@
 #include "../boardconfig.h"
 #include "uart_tx.pio.h"
 
-#if GENERIC_INTR_STDIO
+#if BOARD_GPIO_STDIO
 
 static uint debug_tx_sm = 0;
 
@@ -22,8 +22,12 @@ static void _debug_out_chars(const char *buf, int len)
 
 stdio_driver_t debug_stdio = {
     .out_chars = _debug_out_chars,
+    .out_flush = nullptr,
+    .in_chars = nullptr,
+    .next = nullptr,
 #if PICO_STDIO_ENABLE_CRLF_SUPPORT
-    .crlf_enabled = PICO_STDIO_DEFAULT_CRLF
+    .last_ended_with_cr = false,
+    .crlf_enabled = PICO_STDIO_DEFAULT_CRLF,
 #endif
 };
 
@@ -31,7 +35,7 @@ stdio_driver_t debug_stdio = {
 
 void debug_init()
 {
-    #if GENERIC_INTR_STDIO
+    #if BOARD_GPIO_STDIO
     debug_tx_sm = pio_claim_unused_sm(DEBUG_UART_PIO, true);
 
     uint offset = pio_add_program(DEBUG_UART_PIO, &uart_tx_program);
@@ -40,4 +44,6 @@ void debug_init()
 
     stdio_set_driver_enabled(&debug_stdio, true);
     #endif
+
+    debug_pin_init();
 }
