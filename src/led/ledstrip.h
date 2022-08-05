@@ -25,7 +25,7 @@ class LEDStripBase {
     protected:
         using pixel_type = uint32_t;
 
-        static constexpr uint MAX_STRIPS = 1;
+        static constexpr uint MAX_STRIPS = 2;
         static constexpr float STRIP_FREQUENCY = 800000.0f;
         static constexpr uint64_t STRIP_RESET_DELAY_US = 400u;
 
@@ -43,11 +43,13 @@ class LEDStripBase {
         alarm_id_t m_reset_alarm;
         semaphore_t m_reset_sem;
 
-        // Global    
+        // Global
+        static uint m_dma_irq_index;
+        static PIO m_pio;
         static uint m_program_offset;
         static LEDStripBase *m_strips[MAX_STRIPS];
 
-        LEDStripBase(uint pin, bool is_rgbw);
+        LEDStripBase(PIO pio, uint pin, bool is_rgbw);
 
         void base_init(volatile void *dma_addr, size_t dma_count);
 
@@ -62,7 +64,7 @@ class LEDStripBase {
 template<size_t NCOLORS>
 class LEDStrip : public LEDStripBase {
     public:
-        LEDStrip(uint pin, bool is_rgbw) : LEDStripBase { pin, is_rgbw } { }
+        LEDStrip(PIO pio, uint pin, bool is_rgbw) : LEDStripBase { pio, pin, is_rgbw } { }
         LEDStrip(const LEDStrip&) = delete; // No copy constructor
         LEDStrip(LEDStrip&&) = delete; // No move constructor
 

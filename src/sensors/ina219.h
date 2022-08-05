@@ -39,7 +39,7 @@ class INA219 {
         static constexpr int64_t UPDATE_INTERVAL = 250000;
         static constexpr float SHUNT_RESISTOR = 0.1f; // 0.1 Ohm shunt resistor
 
-        Address m_addr;
+        addr_t m_address;
         bool m_present;
 
         absolute_time_t m_last_update;

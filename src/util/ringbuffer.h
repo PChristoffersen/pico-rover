@@ -101,19 +101,6 @@ class RingBuffer {
             }
         }
 
-        void printc()
-        {
-            printf("   ");
-            for (size_t i=0; i<size(); ++i) {
-                printf("%02x ", (int)(*this)[i]);
-            }
-            printf("\n");
-        }
-        void print(const char *reason) {
-            printf("%s:  head=%-3u tail=%-3u size=%-3u  ", reason, m_head, m_tail, size());
-            printc();
-        }
-
     private:
         static constexpr size_t MASK { SIZE-1 };
 

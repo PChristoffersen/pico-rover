@@ -26,12 +26,13 @@
 #include "sensors/ina219.h"
 
 
-LED builtinLED { PICO_DEFAULT_LED_PIN };
-LEDStrip<LED_STRIP_PIXEL_COUNT> led_strip { LED_STRIP_PIN, LED_STRIP_IS_RGBW,  };
 
+// Sensors
 static PicoADC picoADC { BATTERY_SENSE_PIN, BATTERY_SENSE_R1, BATTERY_SENSE_R2 };
 static INA219 currentSensor { INA219::Address::INA0 };
+static BNO055 imu;
 
+// Motors and servos
 Servo servos[] = {
     { SERVO1_PIN },
     { SERVO2_PIN },
@@ -43,7 +44,15 @@ Motor motors[] = {
     { MOTOR4_IN1_PIN, MOTOR4_IN2_PIN, MOTOR4_ENCA_PIN, MOTOR4_ENCB_PIN },
 };
 
+// LED/Displays
+LED builtinLED { PICO_DEFAULT_LED_PIN };
+LEDStrip<LED_STRIP_PIXEL_COUNT> led_strip { LED_STRIP_PIO, LED_STRIP_PIN, LED_STRIP_IS_RGBW };
+OLEDDisplay display { OLED_ADDRESS, OLED_TYPE };
+
+// Radio
 FrSkyReceiver receiver { RADIO_RECEIVER_UART, RADIO_RECEIVER_BAUD_RATE, RADIO_RECEIVER_TX_PIN, RADIO_RECEIVER_RX_PIN };
+
+
 
 #define WATCHDOG_INTERVAL 1000u // 1 second
 
@@ -127,6 +136,14 @@ static void print_banner()
     else {
         printf("Clean boot\n");
     }
+    printf("  CPU Frequency: %.3f MHz\n", clock_get_hz(clk_sys)/1000000.0f);
+    if (imu.present()) {
+        printf("            IMU: Present (sw: %04x)\n", imu.sw_rev());
+    }
+    else {
+        printf("            IMU: Not found\n");
+    }
+    printf("        Display: %s\n", display.present()?"Present":"Not found");
 
     printf("--------------------------------------------\n");
 
@@ -138,8 +155,10 @@ static void print_banner()
 
 static void init() 
 {
+
     builtinLED.init();
     i2c_bus_init();
+    bus_scan();
 
     #if 0
     for (uint i=0; i<count_of(servos); ++i) {
@@ -157,8 +176,8 @@ static void init()
     #endif
     picoADC.init();
     currentSensor.init();
-    bno055_init();
-    oled_init();
+    imu.init();
+    display.init();
 
     // Register callbacks
     picoADC.set_battery_cb([](auto voltage){
@@ -238,7 +257,13 @@ static void main_core1()
  ******************************************************************************/
 
 static void main_init() {
-    oled_test();
+
+    sleep_ms(1000);
+    display.frame().clear();
+    display.frame().draw_rect(32, 34, 64, 4);
+    display.update();
+
+
 
     #if 0
     motor_set_drivers_enabled(true);
@@ -258,9 +283,21 @@ static void main_update()
 
     //currentSensor.update();
 
-    if (absolute_time_diff_us(last_main, now)>10000000ll) {
+    if (absolute_time_diff_us(last_main, now)>100000ll) {
         static const uint n_states = 4;
         static uint state = 0;
+
+        //printf("Tick: %d\n", state);
+        #if 1
+        static int height = 24;
+        static int pos = 0;
+        display.frame().clear();
+        display.frame().draw_rect(32, pos, 64, height);
+        display.update();
+
+        pos++;
+        if (pos>=64) pos = -height;
+        #endif
 
         #if 0
         motor_encoder_fetch_request(MOTOR_1);

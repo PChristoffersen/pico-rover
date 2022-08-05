@@ -20,5 +20,5 @@ void i2c_bus_release();
 void i2c_bus_write_dma(uint8_t addr);
 
 void i2c_dma_buffer_reset();
-void i2c_dma_buffer_append(uint8_t *src, size_t len);
+void i2c_dma_buffer_append(const uint8_t *src, size_t len);
 

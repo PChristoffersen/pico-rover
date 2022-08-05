@@ -11,26 +11,23 @@
 #include "ws2812.pio.h"
 
 
-#define LED_STRIP_PIO              pio0
-#define LED_STRIP_DMA_IRQ          DMA_IRQ_0
-#define LED_STRIP_DMA_IRQ_INDEX    0
-#define LED_STRIP_DMA_IRQ_SHARED   1
-#define LED_STRIP_DMA_IRQ_PRIORITY 1
+static constexpr bool LED_STRIP_DMA_IRQ_SHARED   = true;
+static constexpr uint LED_STRIP_DMA_IRQ_PRIORITY = 1;
 
 
-
-LEDStripBase *LEDStripBase::m_strips[MAX_STRIPS] = { nullptr, };
+PIO LEDStripBase::m_pio = nullptr;
+LEDStripBase *LEDStripBase::m_strips[MAX_STRIPS];
 uint LEDStripBase::m_program_offset = 0;
+uint LEDStripBase::m_dma_irq_index = 0;
 
 
 
 // DMA transfer of pixel data is complete
 void __isr LEDStripBase::dma_complete_handler()
 {
-    for (uint i=0; i<count_of(LEDStripBase::m_strips); ++i) {
-        LEDStripBase *strip = LEDStripBase::m_strips[i];
-        if (strip && dma_irqn_get_channel_status(LED_STRIP_DMA_IRQ_INDEX, strip->m_dma)) {
-            dma_irqn_acknowledge_channel(LED_STRIP_DMA_IRQ_INDEX, strip->m_dma);
+    for (auto strip : m_strips) {
+        if (strip && dma_irqn_get_channel_status(m_dma_irq_index, strip->m_dma)) {
+            dma_irqn_acknowledge_channel(m_dma_irq_index, strip->m_dma);
 
             // Alarm callback triggered when the reset period of the LED strip has passed, and it is safe to start sending pixel data again
             if (strip->m_reset_alarm) {
@@ -47,12 +44,16 @@ void __isr LEDStripBase::dma_complete_handler()
 }
 
 
-LEDStripBase::LEDStripBase(uint pin, bool is_rgbw):
+LEDStripBase::LEDStripBase(PIO pio, uint pin, bool is_rgbw):
     m_pin { pin },
     m_is_rgbw { is_rgbw },
     m_correction { Color::Correction::TypicalLEDStrip },
     m_brightness { Color::BRIGHTNESS_DEFAULT }
 {
+    assert(m_pio==nullptr || pio==m_pio); // Dont allow different PIO instances on different strips
+    if (m_pio==nullptr) {
+        m_pio = pio;
+    }
 }
 
 
@@ -68,14 +69,24 @@ void LEDStripBase::global_init()
     }
 
     // Setup PIO program
-    m_program_offset = pio_add_program(LED_STRIP_PIO, &ws2812_program);
+    m_program_offset = pio_add_program(m_pio, &ws2812_program);
 
-    #if LED_STRIP_DMA_IRQ_SHARED
-    irq_add_shared_handler(LED_STRIP_DMA_IRQ, dma_complete_handler, LED_STRIP_DMA_IRQ_PRIORITY);
-    #else
-    irq_set_exclusive_handler(LED_STRIP_DMA_IRQ, _dma_complete_handler);
-    #endif
-    irq_set_enabled(LED_STRIP_DMA_IRQ, true);
+    m_dma_irq_index = get_core_num();
+    uint dma_irq;
+    if (m_dma_irq_index==0) {
+        dma_irq = DMA_IRQ_0;
+    }
+    else {
+        dma_irq = DMA_IRQ_1;
+    }
+
+    if (LED_STRIP_DMA_IRQ_SHARED) {
+        irq_add_shared_handler(dma_irq, dma_complete_handler, LED_STRIP_DMA_IRQ_PRIORITY);
+    }
+    else {
+        irq_set_exclusive_handler(dma_irq, dma_complete_handler);
+    }
+    irq_set_enabled(dma_irq, true);
 
     initialized = true;
 }
@@ -100,8 +111,8 @@ void LEDStripBase::base_init(volatile void *dma_addr, size_t dma_count)
     gpio_put(m_pin, false);
 
     // Setup PIO program
-    m_sm = pio_claim_unused_sm(LED_STRIP_PIO, true);
-    ws2812_program_init(LED_STRIP_PIO, m_sm, m_program_offset, m_pin, STRIP_FREQUENCY, m_is_rgbw);
+    m_sm = pio_claim_unused_sm(m_pio, true);
+    ws2812_program_init(m_pio, m_sm, m_program_offset, m_pin, STRIP_FREQUENCY, m_is_rgbw);
 
     // Initialize reset delay semaphore
     m_reset_alarm = 0;
@@ -112,26 +123,27 @@ void LEDStripBase::base_init(volatile void *dma_addr, size_t dma_count)
     m_dma_addr = dma_addr;
 
     dma_channel_config config = dma_channel_get_default_config(m_dma);
-    channel_config_set_dreq(&config, pio_get_dreq(LED_STRIP_PIO, m_sm, true)); 
+    channel_config_set_dreq(&config, pio_get_dreq(m_pio, m_sm, true)); 
     channel_config_set_transfer_data_size(&config, DMA_SIZE_32);
     channel_config_set_read_increment(&config, true); // We want DMA reading to PIO
     channel_config_set_write_increment(&config, false); // We don't want DMA writing from PIO
 
     dma_channel_configure(m_dma,
                           &config,
-                          &LED_STRIP_PIO->txf[m_sm],
+                          &m_pio->txf[m_sm],
                           dma_addr,
                           dma_count,
                           false);
 
     global_add_strip(this);
 
-    #if LED_STRIP_DMA_IRQ == DMA_IRQ_0
-    dma_channel_set_irq0_enabled(m_dma, true);
-    #endif
-    #if LED_STRIP_DMA_IRQ == DMA_IRQ_1
-    dma_channel_set_irq1_enabled(m_dma, true);
-    #endif
+    if (get_core_num()==0) {
+        dma_channel_set_irq0_enabled(m_dma, true);
+    }
+    else {
+        dma_channel_set_irq1_enabled(m_dma, true);
+    }
+
 }
 
 

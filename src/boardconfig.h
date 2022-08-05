@@ -22,6 +22,7 @@
 
 
 /* LED */
+#define LED_STRIP_PIO              pio0
 #define LED_STRIP_PIN              19
 #define LED_STRIP_IS_RGBW          false
 #define LED_STRIP_PIXEL_COUNT      16
@@ -68,10 +69,6 @@
 #define BOARD_I2C_SDA_PIN PICO_DEFAULT_I2C_SDA_PIN
 #define BOARD_I2C_SCL_PIN PICO_DEFAULT_I2C_SCL_PIN
 #define BOARD_I2C i2c_default
-#define BOARD_I2C_DMA_IRQ DMA_IRQ_0
-#define BOARD_I2C_DMA_IRQ_INDEX 0
-#define BOARD_I2C_DMA_IRQ_SHARED 1
-#define BOARD_I2C_DMA_IRQ_PRIORITY 0
 
 
 //#define BOARD_I2C_SPEED 100000u  // Standard mode  (100kpbs)
@@ -79,9 +76,8 @@
 #define BOARD_I2C_SPEED 1000000u // Fast mode plus (1Mbps)
 
 /* OLED */
-#define OLED_WIDTH 128
-#define OLED_HEIGHT 64
-#define OLED_ADDRESS 0x3D
+#define OLED_ADDRESS OLEDDisplay::Address::DISPLAY1
+#define OLED_TYPE OLEDDisplay::Type::OLED_128x64
 
 
 /* Debug */

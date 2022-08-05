@@ -24,10 +24,7 @@
 #include <pico/util/queue.h>
 #include <hardware/uart.h>
 
-#include "../boardconfig.h"
 #include "frsky_protocol.h"
-
-
 
 
 
@@ -39,6 +36,7 @@ FrSkyReceiver::FrSkyReceiver(uart_inst_t *uart, uint tx_pin, uint rx_pin, uint b
     m_state { State::SYNCING },
     m_connected { false }
 {
+    mutex_init(&m_mutex);
 }
 
 
@@ -66,9 +64,13 @@ void FrSkyReceiver::begin()
 
 
 
-inline void FrSkyReceiver::buffer_rx()
+inline void FrSkyReceiver::buffers_update()
 {
     uint8_t ch;
+    while (!m_tx_buffer.empty() && uart_is_writable(m_uart)) {
+        uart_write_blocking(m_uart, &m_tx_buffer.head(), 1);
+        m_tx_buffer.pop(1);
+    }
     while (uart_is_readable(m_uart)) {
         uart_read_blocking(m_uart, &ch, 1);
         m_rx_buffer.push(ch);
@@ -76,31 +78,17 @@ inline void FrSkyReceiver::buffer_rx()
 }
 
 
-inline void FrSkyReceiver::buffer_tx()
-{
-    while (!m_tx_buffer.empty() && uart_is_writable(m_uart)) {
-        uart_write_blocking(m_uart, &m_tx_buffer.head(), 1);
-        m_tx_buffer.pop(1);
-    }
-}
-
-
+/**
+ * @brief Calculate how many us to wait for serial buffer to fill
+ * 
+ * @param bytes number of bytes to wait for
+ * @return uint64_t wait time in us
+ */
 uint64_t FrSkyReceiver::buffer_wait_time_us(size_t bytes) 
 {
-    #warning TODO verify and limit required
-    return 50;
-    #if 0
-    if (g_receiver_uart_state == RCUS_RX) {
-        if (g_receiver_buffer_pos >= g_receiver_buffer_required)
-            return get_absolute_time();
-        
-        int64_t missing_bits = (g_receiver_buffer_required-g_receiver_buffer_pos)*10ull;
-        return make_timeout_time_us(missing_bits * 1000000ull / RADIO_RECEIVER_BAUD_RATE);
-    }
-    else {
-        return make_timeout_time_us(50);
-    }
-    #endif
+    uint64_t bits = MAX(bytes, BUFFER_MAX_WAIT_CHARS) * 10ull; // Calculate bits to wait for including start and stop bit
+    uint64_t wait_us = bits * 1000000ull / m_baudrate;
+    return wait_us;
 }
 
 
@@ -195,13 +183,13 @@ bool FrSkyReceiver::do_sync(absolute_time_t &wait)
     }
 
     // Check if we have a full control package
-    if (bufsz<FBUS_CONTROL_SIZE(m_rx_buffer)) {
-        wait = make_timeout_time_us(buffer_wait_time_us(FBUS_CONTROL_SIZE(m_rx_buffer)-bufsz));
+    if (bufsz<fbus_control_size(m_rx_buffer)) {
+        wait = make_timeout_time_us(buffer_wait_time_us(fbus_control_size(m_rx_buffer)-bufsz));
         return false;
     }
 
     // Check CRC
-    if (checksum(m_rx_buffer, FBUS_CONTROL_HDR_SIZE, m_rx_buffer[0])!=FBUS_CONTROL_CRC(m_rx_buffer)) {
+    if (checksum(m_rx_buffer, FBUS_CONTROL_HDR_SIZE, m_rx_buffer[0])!=fbus_control_crc(m_rx_buffer)) {
         m_rx_buffer.pop(2);
         return true;
     }
@@ -217,7 +205,6 @@ bool FrSkyReceiver::do_sync(absolute_time_t &wait)
 bool FrSkyReceiver::do_read_control(absolute_time_t &wait)
 {
     size_t bufsz = m_rx_buffer.size();
-    uint8_t n_channels = 8;
 
     if (bufsz<FBUS_CONTROL_HDR_SIZE) {
         wait = make_timeout_time_us(buffer_wait_time_us(FBUS_CONTROL_8CH_SIZE-bufsz));
@@ -236,24 +223,26 @@ bool FrSkyReceiver::do_read_control(absolute_time_t &wait)
         return true;
     }
 
-    if (bufsz<FBUS_CONTROL_SIZE(m_rx_buffer)) {
-        wait = make_timeout_time_us(buffer_wait_time_us(FBUS_CONTROL_SIZE(m_rx_buffer)-bufsz));
+    if (bufsz<fbus_control_size(m_rx_buffer)) {
+        wait = make_timeout_time_us(buffer_wait_time_us(fbus_control_size(m_rx_buffer)-bufsz));
         return false;
     }
 
     // Validate CRC
-    if (checksum(m_rx_buffer, FBUS_CONTROL_HDR_SIZE, m_rx_buffer[0])!=FBUS_CONTROL_CRC(m_rx_buffer)) {
+    if (checksum(m_rx_buffer, FBUS_CONTROL_HDR_SIZE, m_rx_buffer[0])!=fbus_control_crc(m_rx_buffer)) {
         begin_sync();
         return true;
     }
 
     // Process package
-    uint8_t flags = FBUS_CONTROL_FLAGS(m_rx_buffer);
-    uint8_t rssi = FBUS_CONTROL_RSSI(m_rx_buffer);
+    mutex_enter_blocking(&m_mutex);
+    m_flags = fbus_control_flags(m_rx_buffer);
+    m_rssi = fbus_control_rssi(m_rx_buffer);
 
     m_connected = true; // TODO check flags
 
     #if 0
+    uint8_t n_channels = 8;
     set_8channel(shm_fbus->channels, fbus_buffer+FBUS_CONTROL_HDR_SIZE, 0);
     if (fbus_buffer[0]>=FBUS_CONTROL_16CH_SIZE) {
         set_8channel(shm_fbus->channels, fbus_buffer+FBUS_CONTROL_HDR_SIZE+11, 8);
@@ -274,7 +263,9 @@ bool FrSkyReceiver::do_read_control(absolute_time_t &wait)
     }
     #endif
 
-    m_rx_buffer.pop(FBUS_CONTROL_SIZE(m_rx_buffer));
+    mutex_exit(&m_mutex);
+
+    m_rx_buffer.pop(fbus_control_size(m_rx_buffer));
     begin_read_downlink();
     return true;
 }
@@ -300,7 +291,7 @@ bool FrSkyReceiver::do_read_downlink(absolute_time_t &wait)
     }
 
     // Validate CRC
-    if (checksum(m_rx_buffer, FBUS_DOWNLINK_HDR_SIZE, m_rx_buffer[0])!=FBUS_DOWNLINK_CRC(m_rx_buffer)) {
+    if (checksum(m_rx_buffer, FBUS_DOWNLINK_HDR_SIZE, m_rx_buffer[0])!=fbus_downlink_crc(m_rx_buffer)) {
         //printf("Downlink CRC!\n");
         begin_sync();
         return true;
@@ -398,7 +389,7 @@ bool FrSkyReceiver::do_read_uplink(absolute_time_t &wait)
     }
 
     // Validate CRC
-    if (checksum(m_rx_buffer, FBUS_UPLINK_HDR_SIZE, m_rx_buffer[0])!=FBUS_UPLINK_CRC(m_rx_buffer)) {
+    if (checksum(m_rx_buffer, FBUS_UPLINK_HDR_SIZE, m_rx_buffer[0])!=fbus_uplink_crc(m_rx_buffer)) {
         //printf("Uplink CRC!\n");
         begin_sync();
         return true;
@@ -413,35 +404,33 @@ bool FrSkyReceiver::do_read_uplink(absolute_time_t &wait)
 absolute_time_t FrSkyReceiver::update() 
 {
     bool again = false;
-    absolute_time_t next = make_timeout_time_us(500);
+    absolute_time_t next = make_timeout_time_ms(1);
     do {
-        buffer_tx();
-        buffer_rx();
+        buffers_update();
 
         if (!m_connected) {
             telemetry_flush();
         }
 
-
-    switch (m_state) {
-        case State::SYNCING:
-            again = do_sync(next);
-            break;
-        case State::READ_CONTROL:
-            again = do_read_control(next);
-            break;
-        case State::READ_DOWNLINK:
-            again = do_read_downlink(next);
-            break;
-        case State::WAIT_WRITE_UPLINK:
-            again = do_wait_write_uplink(next);
-            break;
-        case State::WRITE_UPLINK:
-            again = do_write_uplink(next);
-            break;
-        case State::READ_UPLINK:
-            again = do_read_uplink(next);
-            break;
+        switch (m_state) {
+            case State::SYNCING:
+                again = do_sync(next);
+                break;
+            case State::READ_CONTROL:
+                again = do_read_control(next);
+                break;
+            case State::READ_DOWNLINK:
+                again = do_read_downlink(next);
+                break;
+            case State::WAIT_WRITE_UPLINK:
+                again = do_wait_write_uplink(next);
+                break;
+            case State::WRITE_UPLINK:
+                again = do_write_uplink(next);
+                break;
+            case State::READ_UPLINK:
+                again = do_read_uplink(next);
+                break;
         }    
     } while (again);
 

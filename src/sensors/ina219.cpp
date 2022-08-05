@@ -76,7 +76,7 @@ static inline bool _ina219_overflow(uint16_t value)
 
 
 INA219::INA219(Address addr) :
-    m_addr { addr },
+    m_address { static_cast<addr_t>(addr) },
     m_present { false },
     m_shunt_v { 0.0f },
     m_bus_v { 0.0f },
@@ -90,7 +90,7 @@ INA219::INA219(Address addr) :
 bool INA219::write_reg(uint8_t reg, uint16_t value)
 {
     uint8_t rval[3] = { reg, static_cast<uint8_t>(value>>8), static_cast<uint8_t>(value&0xFF)};
-    int res = i2c_write_blocking(i2c_default, static_cast<addr_t>(m_addr), rval, sizeof(rval), false);
+    int res = i2c_write_blocking(i2c_default, m_address, rval, sizeof(rval), false);
     if (res!=sizeof(rval)) {
         return false;
     }
@@ -102,9 +102,9 @@ bool INA219::read_reg(uint8_t reg, uint16_t &value)
 {
     int res;
     uint8_t rval[2] = { 0x00, 0x00 };
-    res =i2c_write_blocking(i2c_default, static_cast<addr_t>(m_addr), &reg, sizeof(reg), false);
+    res =i2c_write_blocking(i2c_default, m_address, &reg, sizeof(reg), false);
     if (res<=0) return false;
-    res =i2c_read_blocking(i2c_default, static_cast<addr_t>(m_addr), rval, sizeof(rval), false);
+    res =i2c_read_blocking(i2c_default, m_address, rval, sizeof(rval), false);
     if (res<=0) return false;
     value = static_cast<uint16_t>(rval[0]<<8) | (rval[1]);
     return true;

@@ -32,6 +32,7 @@ add_executable(${PROJECT_NAME}
     src/led/ledstrip.cpp
     src/motor/motor.cpp
     src/oled/oled.cpp
+    src/oled/framebuffer.cpp
     src/radio/frsky_receiver.cpp
     src/servo/servo.cpp
     src/sensors/bno055.cpp

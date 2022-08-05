@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <pico/stdlib.h>
 #include <pico/util/queue.h>
+#include <pico/mutex.h>
 
 
 #include "../util/ringbuffer.h"
@@ -20,6 +21,9 @@
 
 class FrSkyReceiver {
     public:
+        using flags_type = uint8_t;
+        using rssi_type = uint8_t;
+
         FrSkyReceiver(uart_inst_t *uart, uint tx_pin, uint rx_pin, uint baudrate);
 
         void init();
@@ -33,6 +37,7 @@ class FrSkyReceiver {
         static constexpr uint8_t RECEIVER_ID = 0x67;
         static constexpr size_t RX_BUFFER_SIZE = 128u;
         static constexpr size_t TX_BUFFER_SIZE = 16u;
+        static constexpr size_t BUFFER_MAX_WAIT_CHARS = 8u;
         static constexpr uint TELEMETRY_QUEUE_SIZE = 32u;
 
         using rx_buffer_type = RingBuffer<uint8_t, RX_BUFFER_SIZE>;
@@ -48,19 +53,28 @@ class FrSkyReceiver {
         };
 
 
+        // Config
         uart_inst_t *m_uart;
         uint m_baudrate;
         uint m_tx_pin;
         uint m_rx_pin;
 
-        State m_state;
-        bool m_connected;
 
+        State m_state;
+        absolute_time_t m_uplink_start;
+
+        // Current data
+        mutex_t m_mutex;
+        bool m_connected;
+        flags_type m_flags;
+        rssi_type m_rssi;
+
+
+        // Buffers
         rx_buffer_type m_rx_buffer;
         tx_buffer_type m_tx_buffer;
 
-        absolute_time_t m_uplink_start;
-
+        // Telemetry
         queue_t m_telemetry_queue;
 
         void telemetry_flush();
@@ -79,8 +93,7 @@ class FrSkyReceiver {
         }
 
 
-        inline void buffer_rx();
-        inline void buffer_tx();
+        inline void buffers_update();
         uint64_t buffer_wait_time_us(size_t bytes);
 
         inline void begin_sync();

@@ -9,12 +9,16 @@
 #include "boardconfig.h"
 
 
-#define DMA_BUFFER_SIZE (1024+16)
+static constexpr size_t DMA_BUFFER_SIZE = 1024+16;
 
+static constexpr uint I2C_DMA_IRQ          = DMA_IRQ_0;
+static constexpr bool I2C_DMA_IRQ_SHARED   = true;
+static constexpr uint I2C_DMA_IRQ_PRIORITY = 0;
 
 
 static struct semaphore g_bus_sem;
 static uint g_bus_dma = 0;
+static uint g_bus_dma_irq_index = 0;
 static dma_channel_config g_bus_dma_config;
 static volatile uint16_t g_bus_dma_buffer[DMA_BUFFER_SIZE];
 static size_t g_bus_dma_pos = 0;
@@ -23,9 +27,9 @@ static size_t g_bus_dma_pos = 0;
 // DMA transfer of pixel data is complete
 static void __isr _dma_complete_handler()
 {
-    if (dma_irqn_get_channel_status(BOARD_I2C_DMA_IRQ_INDEX, g_bus_dma)) {
+    if (dma_irqn_get_channel_status(g_bus_dma_irq_index, g_bus_dma)) {
         // Clear the interrupt request.
-        dma_irqn_acknowledge_channel(BOARD_I2C_DMA_IRQ_INDEX, g_bus_dma);
+        dma_irqn_acknowledge_channel(g_bus_dma_irq_index, g_bus_dma);
         hw_set_bits(&i2c_default->hw->intr_mask, I2C_IC_INTR_MASK_M_TX_EMPTY_BITS); // Unmask TX_EMPTY IRQ
     }
 }
@@ -73,19 +77,22 @@ void i2c_bus_init()
                           false);
 
 
-    #if BOARD_I2C_DMA_IRQ == DMA_IRQ_0
-    dma_channel_set_irq0_enabled(g_bus_dma, true);
-    #endif
-    #if BOARD_I2C_DMA_IRQ == DMA_IRQ_1
-    dma_channel_set_irq1_enabled(g_bus_dma, true);
-    #endif
+    if (I2C_DMA_IRQ == DMA_IRQ_0) {
+        dma_channel_set_irq0_enabled(g_bus_dma, true);
+        g_bus_dma_irq_index = 0;
+    }
+    else {
+        dma_channel_set_irq1_enabled(g_bus_dma, true);
+        g_bus_dma_irq_index = 1;
+    }
 
-    #if BOARD_I2C_DMA_IRQ_SHARED
-    irq_add_shared_handler(BOARD_I2C_DMA_IRQ, _dma_complete_handler, BOARD_I2C_DMA_IRQ_PRIORITY);
-    #else
-    irq_set_exclusive_handler(BOARD_I2C_DMA_IRQ, _dma_complete_handler);
-    #endif
-    irq_set_enabled(BOARD_I2C_DMA_IRQ, true);
+    if (I2C_DMA_IRQ_SHARED) {
+        irq_add_shared_handler(I2C_DMA_IRQ, _dma_complete_handler, I2C_DMA_IRQ_PRIORITY);
+    }
+    else {
+        irq_set_exclusive_handler(I2C_DMA_IRQ, _dma_complete_handler);
+    }
+    irq_set_enabled(I2C_DMA_IRQ, true);
 
     irq_set_exclusive_handler(I2C0_IRQ, _i2c_handler);
 }
@@ -149,7 +156,7 @@ void i2c_dma_buffer_reset()
 }
 
 
-void i2c_dma_buffer_append(uint8_t *src, size_t len)
+void i2c_dma_buffer_append(const uint8_t *src, size_t len)
 {
     for (size_t i=0; i<len; ++i) {
         g_bus_dma_buffer[g_bus_dma_pos++] = src[i];
