@@ -26,9 +26,9 @@
 
 #include "frsky_protocol.h"
 
+namespace Radio::FrSky {
 
-
-FrSkyReceiver::FrSkyReceiver(uart_inst_t *uart, uint tx_pin, uint rx_pin, uint baudrate) :
+Receiver::Receiver(uart_inst_t *uart, uint tx_pin, uint rx_pin, uint baudrate) :
     m_uart { uart },
     m_baudrate { baudrate },
     m_tx_pin { tx_pin },
@@ -40,13 +40,13 @@ FrSkyReceiver::FrSkyReceiver(uart_inst_t *uart, uint tx_pin, uint rx_pin, uint b
 }
 
 
-void FrSkyReceiver::init()
+void Receiver::init()
 {
     queue_init(&m_telemetry_queue, sizeof(radio_telemetry_t), TELEMETRY_QUEUE_SIZE);
 }
 
 
-void FrSkyReceiver::begin()
+void Receiver::begin()
 {
     m_rx_buffer.clear();
     m_tx_buffer.clear();
@@ -64,7 +64,7 @@ void FrSkyReceiver::begin()
 
 
 
-inline void FrSkyReceiver::buffers_update()
+inline void Receiver::buffers_update()
 {
     uint8_t ch;
     while (!m_tx_buffer.empty() && uart_is_writable(m_uart)) {
@@ -84,7 +84,7 @@ inline void FrSkyReceiver::buffers_update()
  * @param bytes number of bytes to wait for
  * @return uint64_t wait time in us
  */
-uint64_t FrSkyReceiver::buffer_wait_time_us(size_t bytes) 
+uint64_t Receiver::buffer_wait_time_us(size_t bytes) 
 {
     uint64_t bits = MAX(bytes, BUFFER_MAX_WAIT_CHARS) * 10ull; // Calculate bits to wait for including start and stop bit
     uint64_t wait_us = bits * 1000000ull / m_baudrate;
@@ -92,28 +92,28 @@ uint64_t FrSkyReceiver::buffer_wait_time_us(size_t bytes)
 }
 
 
-void FrSkyReceiver::begin_sync()
+void Receiver::begin_sync()
 {
     //printf("Begin SYNC!!\n");
     m_state = State::SYNCING;
 }
 
 
-void FrSkyReceiver::begin_read_control()
+void Receiver::begin_read_control()
 {
     //printf("Begin CTRL\n");
     m_state = State::READ_CONTROL;
 }
 
 
-void FrSkyReceiver::begin_read_downlink()
+void Receiver::begin_read_downlink()
 {
     //printf("Begin DOWN\n");
     m_state = State::READ_DOWNLINK;
 }
 
 
-void FrSkyReceiver::begin_wait_write_uplink()
+void Receiver::begin_wait_write_uplink()
 {
     //printf("Begin WAIT_WUP\n");
     m_state = State::WAIT_WRITE_UPLINK;
@@ -121,14 +121,14 @@ void FrSkyReceiver::begin_wait_write_uplink()
 }
 
 
-void FrSkyReceiver::begin_write_uplink()
+void Receiver::begin_write_uplink()
 {
     //printf("Begin WUP\n");
     m_state = State::WRITE_UPLINK;
 }
 
 
-void FrSkyReceiver::begin_read_uplink()
+void Receiver::begin_read_uplink()
 {
     //printf("Begin UPL\n");
     //printf("begin_read_uplink()\n");
@@ -139,7 +139,7 @@ void FrSkyReceiver::begin_read_uplink()
 
 
 
-bool FrSkyReceiver::telemetry_push(const radio_telemetry_t &event)
+bool Receiver::telemetry_push(const radio_telemetry_t &event)
 {
     #if DEBUG_USE_RECEIVER_UART
     return false;
@@ -149,7 +149,7 @@ bool FrSkyReceiver::telemetry_push(const radio_telemetry_t &event)
 }
 
 
-void FrSkyReceiver::telemetry_flush()
+void Receiver::telemetry_flush()
 {
     radio_telemetry_t event;
     while (queue_try_remove(&m_telemetry_queue, &event));
@@ -159,7 +159,7 @@ void FrSkyReceiver::telemetry_flush()
 
 
 
-bool FrSkyReceiver::do_sync(absolute_time_t &wait)
+bool Receiver::do_sync(absolute_time_t &wait)
 {
     size_t bufsz = m_rx_buffer.size();
 
@@ -202,7 +202,7 @@ bool FrSkyReceiver::do_sync(absolute_time_t &wait)
 
 
 
-bool FrSkyReceiver::do_read_control(absolute_time_t &wait)
+bool Receiver::do_read_control(absolute_time_t &wait)
 {
     size_t bufsz = m_rx_buffer.size();
 
@@ -271,7 +271,7 @@ bool FrSkyReceiver::do_read_control(absolute_time_t &wait)
 }
 
 
-bool FrSkyReceiver::do_read_downlink(absolute_time_t &wait)
+bool Receiver::do_read_downlink(absolute_time_t &wait)
 {
     size_t bufsz = m_rx_buffer.size();
 
@@ -314,7 +314,7 @@ bool FrSkyReceiver::do_read_downlink(absolute_time_t &wait)
 }
 
 
-bool FrSkyReceiver::do_wait_write_uplink(absolute_time_t &wait)
+bool Receiver::do_wait_write_uplink(absolute_time_t &wait)
 {
     absolute_time_t now = get_absolute_time();
     int64_t diff = absolute_time_diff_us(m_uplink_start, now);
@@ -355,7 +355,7 @@ bool FrSkyReceiver::do_wait_write_uplink(absolute_time_t &wait)
 }
 
 
-bool FrSkyReceiver::do_write_uplink(absolute_time_t &wait)
+bool Receiver::do_write_uplink(absolute_time_t &wait)
 {
     if (!m_tx_buffer.empty()) {
         // We still have bytes to send, delay by the time it takes to send 2 bytes
@@ -368,7 +368,7 @@ bool FrSkyReceiver::do_write_uplink(absolute_time_t &wait)
 }
 
 
-bool FrSkyReceiver::do_read_uplink(absolute_time_t &wait)
+bool Receiver::do_read_uplink(absolute_time_t &wait)
 {
     size_t bufsz = m_rx_buffer.size();
 
@@ -401,7 +401,7 @@ bool FrSkyReceiver::do_read_uplink(absolute_time_t &wait)
 
 
 
-absolute_time_t FrSkyReceiver::update() 
+absolute_time_t Receiver::update() 
 {
     bool again = false;
     absolute_time_t next = make_timeout_time_ms(1);
@@ -435,4 +435,6 @@ absolute_time_t FrSkyReceiver::update()
     } while (again);
 
     return next;
+}
+
 }

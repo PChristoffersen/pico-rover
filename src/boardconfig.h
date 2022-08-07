@@ -76,8 +76,8 @@
 #define BOARD_I2C_SPEED 1000000u // Fast mode plus (1Mbps)
 
 /* OLED */
-#define OLED_ADDRESS OLEDDisplay::Address::DISPLAY1
-#define OLED_TYPE OLEDDisplay::Type::OLED_128x64
+#define OLED_ADDRESS OLED::Display::Address::DISPLAY1
+#define OLED_TYPE OLED::Display::Type::SSD1306_128x64
 
 
 /* Debug */

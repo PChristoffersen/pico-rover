@@ -1,4 +1,4 @@
-#include "ledstrip.h"
+#include "strip.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -11,19 +11,20 @@
 #include "ws2812.pio.h"
 
 
+namespace LED {
+
 static constexpr bool LED_STRIP_DMA_IRQ_SHARED   = true;
 static constexpr uint LED_STRIP_DMA_IRQ_PRIORITY = 1;
 
-
-PIO LEDStripBase::m_pio = nullptr;
-LEDStripBase *LEDStripBase::m_strips[MAX_STRIPS];
-uint LEDStripBase::m_program_offset = 0;
-uint LEDStripBase::m_dma_irq_index = 0;
+PIO StripBase::m_pio = nullptr;
+StripBase *StripBase::m_strips[MAX_STRIPS];
+uint StripBase::m_program_offset = 0;
+uint StripBase::m_dma_irq_index = 0;
 
 
 
 // DMA transfer of pixel data is complete
-void __isr LEDStripBase::dma_complete_handler()
+void __isr StripBase::dma_complete_handler()
 {
     for (auto strip : m_strips) {
         if (strip && dma_irqn_get_channel_status(m_dma_irq_index, strip->m_dma)) {
@@ -34,7 +35,7 @@ void __isr LEDStripBase::dma_complete_handler()
                 cancel_alarm(strip->m_reset_alarm);
             }
             strip->m_reset_alarm = add_alarm_in_us(STRIP_RESET_DELAY_US, +[](alarm_id_t id, void *user_data) -> int64_t {
-                LEDStripBase *strip = (LEDStripBase*)user_data;
+                StripBase *strip = (StripBase*)user_data;
                 strip->m_reset_alarm = 0;
                 sem_release(&strip->m_reset_sem);
                 return 0;
@@ -44,7 +45,7 @@ void __isr LEDStripBase::dma_complete_handler()
 }
 
 
-LEDStripBase::LEDStripBase(PIO pio, uint pin, bool is_rgbw):
+StripBase::StripBase(PIO pio, uint pin, bool is_rgbw):
     m_pin { pin },
     m_is_rgbw { is_rgbw },
     m_correction { Color::Correction::TypicalLEDStrip },
@@ -58,7 +59,7 @@ LEDStripBase::LEDStripBase(PIO pio, uint pin, bool is_rgbw):
 
 
 
-void LEDStripBase::global_init()
+void StripBase::global_init()
 {
     static bool initialized = false;
     if (initialized)
@@ -91,7 +92,7 @@ void LEDStripBase::global_init()
     initialized = true;
 }
 
-void LEDStripBase::global_add_strip(LEDStripBase *strip)
+void StripBase::global_add_strip(StripBase *strip)
 {
     for (uint i=0; i<count_of(m_strips); ++i) {
         if (m_strips[i]==nullptr) {
@@ -102,7 +103,7 @@ void LEDStripBase::global_add_strip(LEDStripBase *strip)
 }
 
 
-void LEDStripBase::base_init(volatile void *dma_addr, size_t dma_count)
+void StripBase::base_init(volatile void *dma_addr, size_t dma_count)
 {
     global_init();
 
@@ -147,7 +148,7 @@ void LEDStripBase::base_init(volatile void *dma_addr, size_t dma_count)
 }
 
 
-void LEDStripBase::show()
+void StripBase::show()
 {
     // Make sure DMA is not running
     dma_channel_wait_for_finish_blocking(m_dma);
@@ -162,3 +163,5 @@ void LEDStripBase::show()
     dma_channel_set_read_addr(m_dma, m_dma_addr, true);
 }
 
+
+}

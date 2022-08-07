@@ -7,7 +7,7 @@
 #include <hardware/clocks.h>
 
 #include "../boardconfig.h"
-#include "../util.h"
+#include <util/mutex.h>
 
 #define CLAMP(x, lower, upper) (MIN(upper, MAX(x, lower)))
 

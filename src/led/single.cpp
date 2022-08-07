@@ -1,20 +1,20 @@
-#include "led.h"
+#include "single.h"
 
 #include <stdio.h>
 #include <pico/stdlib.h>
 
 #include "../boardconfig.h"
 
+namespace LED {
 
-
-LED::LED(uint pin) :
+Single::Single(uint pin) :
     m_pin { pin },
     m_blinking { false }
 {
 }
 
 
-void LED::init()
+void Single::init()
 {
     gpio_init(m_pin);
     gpio_set_dir(m_pin, GPIO_OUT);
@@ -22,28 +22,28 @@ void LED::init()
 }
 
 
-void LED::on()
+void Single::on()
 {
     gpio_put(m_pin, 1);
     m_blinking = false;
 }
 
 
-void LED::off()
+void Single::off()
 {
     gpio_put(m_pin, false);
     m_blinking = false;
 }
 
 
-void LED::blink()
+void Single::blink()
 {
     m_blink_last = get_absolute_time();
     m_blinking = true;
 }
 
 
-absolute_time_t LED::update()
+absolute_time_t Single::update()
 {
     if (!m_blinking)
         return make_timeout_time_ms(60000);
@@ -61,4 +61,7 @@ absolute_time_t LED::update()
         m_blink_last = now;
     }
     return delayed_by_us(m_blink_last, BLINK_INTERVAL);
+}
+
+
 }

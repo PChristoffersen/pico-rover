@@ -13,37 +13,39 @@
 
 #include "framebuffer.h"
 
-class OLEDDisplay {
-    public:
-        using addr_t = uint8_t;
+namespace OLED {
 
-        enum class Address: addr_t {
-            DISPLAY0 = 0x3C,
-            DISPLAY1 = 0x3D,
-        };
-        enum class Type {
-            OLED_128x64,
-            OLED_128x32,
-        };
+    class Display {
+        public:
+            using addr_t = uint8_t;
 
-        OLEDDisplay(Address address, Type type);
+            enum class Address: addr_t {
+                DISPLAY0 = 0x3C,
+                DISPLAY1 = 0x3D,
+            };
+            enum class Type {
+                SSD1306_128x64,
+                SSD1306_128x32,
+            };
 
-        void init();
-        bool present() { return m_present; }
+            Display(Address address, Type type);
 
-        void update();
+            void init();
+            bool present() { return m_present; }
 
-        OLEDFramebuffer &frame() { return m_framebuffer; }
+            void update();
 
-    private:
-        addr_t m_address;
-        bool m_present;
+            Framebuffer &frame() { return m_framebuffer; }
 
-        OLEDFramebuffer m_framebuffer;
+        private:
+            addr_t m_address;
+            bool m_present;
 
-        void send_cmds(const uint8_t *cmds, uint len);
-        void send_data_sync();
-        void send_data_async();
-};
+            Framebuffer m_framebuffer;
 
+            void send_cmds(const uint8_t *cmds, uint len);
+            void send_data_sync();
+            void send_data_async();
+    };
 
+}

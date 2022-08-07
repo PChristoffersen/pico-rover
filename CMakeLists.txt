@@ -23,13 +23,16 @@ pico_sdk_init()
 #add_compile_options(-Wall -Wextra -Werror -Wno-unused-parameter)
 add_compile_options(-Wall -Wextra -Wno-unused-parameter)
 
+include(image_generate.cmake)
+include(font_generate.cmake)
+
+
 add_executable(${PROJECT_NAME} 
     src/main.cpp
     src/i2c_bus.cpp
     src/boardconfig.cpp
-    src/debug/debug.cpp
-    src/led/led.cpp
-    src/led/ledstrip.cpp
+    src/led/single.cpp
+    src/led/strip.cpp
     src/motor/motor.cpp
     src/oled/oled.cpp
     src/oled/framebuffer.cpp
@@ -38,11 +41,14 @@ add_executable(${PROJECT_NAME}
     src/sensors/bno055.cpp
     src/sensors/pico_adc.cpp
     src/sensors/ina219.cpp
+    src/util/debug.cpp
 )
+
 
 pico_set_program_name(${PROJECT_NAME} "${PROJECT_NAME}")
 pico_set_program_description(${PROJECT_NAME} "Pico Rover controller")
 pico_set_program_version(${PROJECT_NAME} "0.1")
+
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     pico_enable_stdio_usb(${PROJECT_NAME} 0)
@@ -56,6 +62,8 @@ else()
     pico_enable_stdio_usb(${PROJECT_NAME} 1)
 endif()
 
+target_include_directories(${PROJECT_NAME} AFTER PRIVATE ${PROJECT_SOURCE_DIR}/src)
+
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_UART_ENABLE_CRLF_SUPPORT=0)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_ENABLE_CRLF_SUPPORT=1)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_DEFAULT_CRLF=1)
@@ -65,11 +73,19 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SDA_PIN=21)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SCL_PIN=20)
 
 
+
 # Add PIO programs
-pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/led/ws2812.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
-pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/motor/quadrature_encoder.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
-pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/debug/uart_tx.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
- 
+pico_generate_pio_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/led/ws2812.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
+pico_generate_pio_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/motor/quadrature_encoder.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
+pico_generate_pio_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/util/uart_tx.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
+
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/raspberry_logo.bmp ${PROJECT_BINARY_DIR}/generated)
+font_generate_header(${PROJECT_NAME} LiberationMono 16 LiberationMono_16 ${PROJECT_BINARY_DIR}/generated)
+font_generate_header(${PROJECT_NAME} LiberationSans:Bold 16 LiberationSans_16 ${PROJECT_BINARY_DIR}/generated)
+font_generate_header(${PROJECT_NAME} LiberationSans:Bold 24 LiberationSans_24 ${PROJECT_BINARY_DIR}/generated)
+font_generate_header(${PROJECT_NAME} LiberationSans:Bold 32 LiberationSans_32 ${PROJECT_BINARY_DIR}/generated)
+
+
 # Add the standard library to the build
 target_link_libraries(${PROJECT_NAME} 
     pico_stdlib

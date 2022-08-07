@@ -12,11 +12,11 @@
 #endif
 
 #include "boardconfig.h"
-#include "util.h"
+#include "util/time.h"
 #include "i2c_bus.h"
-#include "debug/debug.h"
-#include "led/led.h"
-#include "led/ledstrip.h"
+#include "util/debug.h"
+#include "led/single.h"
+#include "led/strip.h"
 #include "servo/servo.h"
 #include "motor/motor.h"
 #include "oled/oled.h"
@@ -45,12 +45,12 @@ Motor motors[] = {
 };
 
 // LED/Displays
-LED builtinLED { PICO_DEFAULT_LED_PIN };
-LEDStrip<LED_STRIP_PIXEL_COUNT> led_strip { LED_STRIP_PIO, LED_STRIP_PIN, LED_STRIP_IS_RGBW };
-OLEDDisplay display { OLED_ADDRESS, OLED_TYPE };
+LED::Single builtinLED { PICO_DEFAULT_LED_PIN };
+LED::Strip<LED_STRIP_PIXEL_COUNT> led_strip { LED_STRIP_PIO, LED_STRIP_PIN, LED_STRIP_IS_RGBW };
+OLED::Display display { OLED_ADDRESS, OLED_TYPE };
 
 // Radio
-FrSkyReceiver receiver { RADIO_RECEIVER_UART, RADIO_RECEIVER_BAUD_RATE, RADIO_RECEIVER_TX_PIN, RADIO_RECEIVER_RX_PIN };
+Radio::FrSky::Receiver receiver { RADIO_RECEIVER_UART, RADIO_RECEIVER_BAUD_RATE, RADIO_RECEIVER_TX_PIN, RADIO_RECEIVER_RX_PIN };
 
 
 
@@ -192,24 +192,24 @@ static void init()
     });
     picoADC.set_vsys_cb([](auto voltage){
         // Push radio telemetry event
-        radio_telemetry_t event;
-        radio_telemetry_a3(&event, 0, voltage);
+        Radio::FrSky::radio_telemetry_t event;
+        Radio::FrSky::radio_telemetry_a3(&event, 0, voltage);
         receiver.telemetry_push(event);
     });
     picoADC.set_temp_cb([](auto temp){
         // Push radio telemetry event
-        radio_telemetry_t event;
-        radio_telemetry_temperature1(&event, 0, temp);
+        Radio::FrSky::radio_telemetry_t event;
+        Radio::FrSky::radio_telemetry_temperature1(&event, 0, temp);
         receiver.telemetry_push(event);
     });
     currentSensor.set_callback([](auto voltage, auto current, auto power){
-        radio_telemetry_t event;
+        Radio::FrSky::radio_telemetry_t event;
 
         // Push radio telemetry event
-        radio_telemetry_cells(&event, 0x00, 0, 2, voltage/2.0f, voltage/2.0f);
+        Radio::FrSky::radio_telemetry_cells(&event, 0x00, 0, 2, voltage/2.0f, voltage/2.0f);
         receiver.telemetry_push(event);
 
-        radio_telemetry_current(&event, 0, current);
+        Radio::FrSky::radio_telemetry_current(&event, 0, current);
         receiver.telemetry_push(event);
     });
 
@@ -240,10 +240,10 @@ static void main_core1()
         #endif
         
         w_ = picoADC.update();
-        wait = smallest_time(wait, w_);
+        wait = earliest_time(wait, w_);
         
         w_ = currentSensor.update();
-        wait = smallest_time(wait, w_);
+        wait = earliest_time(wait, w_);
 
         sleep_until(wait);
     }
