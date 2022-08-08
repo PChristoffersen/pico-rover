@@ -25,6 +25,8 @@
 #include "sensors/pico_adc.h"
 #include "sensors/ina219.h"
 
+#include "display.h"
+
 
 
 // Sensors
@@ -107,9 +109,9 @@ static void wait_cdc()
 #if LIB_PICO_STDIO_USB
     while (!stdio_usb_connected()) {
         printf(".");
-        led_on();
+        builtinLED.on();
         sleep_ms(100);
-        led_off();
+        builtinLED.off();
         sleep_ms(100);
     }
 #endif
@@ -192,25 +194,16 @@ static void init()
     });
     picoADC.set_vsys_cb([](auto voltage){
         // Push radio telemetry event
-        Radio::FrSky::radio_telemetry_t event;
-        Radio::FrSky::radio_telemetry_a3(&event, 0, voltage);
-        receiver.telemetry_push(event);
+        receiver.telemetry_push(Radio::FrSky::Telemetry::a3(0, voltage));
     });
     picoADC.set_temp_cb([](auto temp){
         // Push radio telemetry event
-        Radio::FrSky::radio_telemetry_t event;
-        Radio::FrSky::radio_telemetry_temperature1(&event, 0, temp);
-        receiver.telemetry_push(event);
+        receiver.telemetry_push(Radio::FrSky::Telemetry::temperature1(0, temp));
     });
     currentSensor.set_callback([](auto voltage, auto current, auto power){
-        Radio::FrSky::radio_telemetry_t event;
-
         // Push radio telemetry event
-        Radio::FrSky::radio_telemetry_cells(&event, 0x00, 0, 2, voltage/2.0f, voltage/2.0f);
-        receiver.telemetry_push(event);
-
-        Radio::FrSky::radio_telemetry_current(&event, 0, current);
-        receiver.telemetry_push(event);
+        receiver.telemetry_push(Radio::FrSky::Telemetry::cells(0x00, 0, 2, voltage/2.0f, voltage/2.0f));
+        receiver.telemetry_push(Radio::FrSky::Telemetry::current(0, current));
     });
 
 }
@@ -225,6 +218,7 @@ static void init()
 static void main_core1() 
 {
     printf("Core 1 running\n");
+
     #ifdef USE_RADIO
     radio_receiver_begin();
     #endif
@@ -236,7 +230,7 @@ static void main_core1()
         #ifdef USE_RADIO
         wait = radio_receiver_update();
         #else
-        wait = make_timeout_time_ms(1000);
+        wait = make_timeout_time_ms(10000);
         #endif
         
         w_ = picoADC.update();
@@ -256,14 +250,49 @@ static void main_core1()
  * Core 0
  ******************************************************************************/
 
-static void main_init() {
+#include <resources/battery.image.h>
+#include <resources/rssi5.image.h>
 
-    sleep_ms(1000);
-    display.frame().clear();
-    display.frame().draw_rect(32, 34, 64, 4);
+#include <liberationmono_16.font.h>
+#include <liberationmono_24.font.h>
+#include <liberationsans_16.font.h>
+#include <liberationsans_24.font.h>
+#include <liberationsansbold_16.font.h>
+#include <liberationsansbold_24.font.h>
+#include <oled/fixed_5x8.font.h>
+#include <oled/fixed_8x8.font.h>
+#include <oled/fixed_12x16.font.h>
+#include <oled/fixed_16x32.font.h>
+
+
+static void main_oled_update()
+{
+    namespace Image = OLED::Resource::Image;
+    namespace Font = OLED::Resource::Font;
+
+    auto &buf = display.frame();
+
+    buf.draw_bitmap(0, 0, Image::Battery);
+    buf.draw_bitmap(128-Image::RSSI5.width(), 0, Image::RSSI5);
+    
+    buf.draw_text(0, 64-8, "7.59V", Font::Fixed_8x8);
+    #if 0
+    const char *text = "7.96V";
+    buf.fill_rect(0,0,128,8);
+    buf.draw_text(4, 0, "94%", Font::Fixed_8x8, OLED::Framebuffer::DrawOp::SUBTRACT);
+    text = "7.58V";
+    buf.draw_text((buf.width()-Font::Fixed_8x8.width(text))/2, 0, text, Font::Fixed_8x8, OLED::Framebuffer::DrawOp::SUBTRACT);
+    #endif
+
+    //buf.draw_text(32, 64-16, "Hello World", Font::Fixed_12x16);
+    
     display.update();
+}
 
 
+static void main_init() {
+    display.frame().clear();
+    main_oled_update();
 
     #if 0
     motor_set_drivers_enabled(true);
@@ -276,19 +305,19 @@ static void main_init() {
     #endif
 }
 
+
+
 static void main_update() 
 {
     static absolute_time_t ABSOLUTE_TIME_INITIALIZED_VAR(last_main, 0);
     absolute_time_t now = get_absolute_time();
 
-    //currentSensor.update();
-
-    if (absolute_time_diff_us(last_main, now)>100000ll) {
+    if (absolute_time_diff_us(last_main, now)>2000000ll) {
         static const uint n_states = 4;
         static uint state = 0;
 
         //printf("Tick: %d\n", state);
-        #if 1
+        #if 0
         static int height = 24;
         static int pos = 0;
         display.frame().clear();
@@ -298,6 +327,24 @@ static void main_update()
         pos++;
         if (pos>=64) pos = -height;
         #endif
+        #if 1
+        {
+            //main_oled_update();
+            display.frame().fill_rect(0, 64-8, 64, 8, OLED::Framebuffer::DrawOp::SUBTRACT);
+            char buf[64];
+            sprintf(buf, "%.2fV", currentSensor.get_bus_voltage());
+            display.frame().draw_text(0, 64-8, buf, OLED::Resource::Font::Fixed_8x8);
+            display.update();
+        }
+        #endif
+
+        {
+            char buf[8];
+            sprintf(buf, "%u", state);
+            display.frame().fill_rect(128-32, 64-16, 32, 16, OLED::Framebuffer::DrawOp::SUBTRACT);
+            display.frame().draw_text(128-32, 64-16, buf, OLED::Resource::Font::Fixed_12x16);
+            display.update();
+        }
 
         #if 0
         motor_encoder_fetch_request(MOTOR_1);
@@ -383,7 +430,7 @@ int main()
 
     // Start core1
     printf("Booting core1\n");
-    //multicore_launch_core1(main_core1);
+    multicore_launch_core1(main_core1);
 
 
     #ifdef USE_WATCHDOG

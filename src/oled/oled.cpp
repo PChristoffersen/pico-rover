@@ -9,7 +9,7 @@
 #include "../i2c_bus.h"
 
 
-#include <raspberry_logo.image.h>
+#include <resources/raspberry_logo.image.h>
 
 namespace OLED {
 
@@ -68,6 +68,7 @@ void Display::send_data_async() {
         dirty.p1,   // Start page
         dirty.p2, // End page
     };
+
     send_cmds(cmds, sizeof(cmds));
 
     i2c_dma_buffer_reset();
@@ -168,7 +169,7 @@ void Display::init()
     send_cmds(cmds, sizeof(cmds));
 
     m_framebuffer.clear();
-    m_framebuffer.draw_bitmap((m_framebuffer.width()-Resource::Image::raspberry_logo.width())/2, (m_framebuffer.height()-Resource::Image::raspberry_logo.height())/2, Resource::Image::raspberry_logo);
+    m_framebuffer.draw_bitmap((m_framebuffer.width()-Resource::Image::Raspberry_Logo.width())/2, (m_framebuffer.height()-Resource::Image::Raspberry_Logo.height())/2, Resource::Image::Raspberry_Logo);
     send_data_sync();
 
     uint8_t cmds2[] = {
@@ -186,7 +187,8 @@ void Display::update()
     if (!m_framebuffer.is_dirty()) 
         return;
     i2c_bus_acquire_blocking();
-    send_data_async(); 
+    send_data_async();
+    m_framebuffer.clear_dirty();
 }
 
 }

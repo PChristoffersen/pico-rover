@@ -10,6 +10,7 @@
 
 #include <pico/stdlib.h>
 #include <pico/mutex.h>
+#include <util/mutex.h>
 
 
 class PicoADC {
@@ -23,32 +24,9 @@ class PicoADC {
         void init();
         absolute_time_t update();
 
-        float get_battery() const 
-        { 
-            float value;
-            mutex_enter_blocking(&m_mutex);
-            value = m_battery_voltage;
-            mutex_exit(&m_mutex);
-            return value;
-        }
-
-        float get_vsys() const 
-        { 
-            float value;
-            mutex_enter_blocking(&m_mutex);
-            value = m_vsys_voltage;
-            mutex_exit(&m_mutex);
-            return value;
-        }
-
-        float get_temp() const 
-        { 
-            float value;
-            mutex_enter_blocking(&m_mutex);
-            value = m_temp;
-            mutex_exit(&m_mutex);
-            return value;
-        }
+        float get_battery() const { MUTEX_GUARD(m_mutex); return m_battery_voltage; }
+        float get_vsys() const    { MUTEX_GUARD(m_mutex); return m_vsys_voltage; }
+        float get_temp() const    { MUTEX_GUARD(m_mutex); return m_temp; }
 
         void set_battery_cb(callback_t cb) { m_battery_cb = cb; }
         void set_vsys_cb(callback_t cb) { m_vsys_cb = cb; }

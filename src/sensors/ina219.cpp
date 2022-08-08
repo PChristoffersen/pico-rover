@@ -84,7 +84,7 @@ INA219::INA219(Address addr) :
     m_power { 0.0f },
     m_callback { nullptr }
 {
-
+    mutex_init(&m_mutex);
 }
 
 bool INA219::write_reg(uint8_t reg, uint16_t value)
@@ -163,16 +163,20 @@ absolute_time_t INA219::update()
 
 
         // Calculate
+        mutex_enter_blocking(&m_mutex);
         m_shunt_v = static_cast<int16_t>((int16_t)((~shunt_reg) + 1) * -1) * 0.01f;  // Shunt voltage is 10 uV per bit
         m_bus_v = _ina219_bus_voltage(bus_reg) * 4 * 0.001f; // Bus voltage is 4 mV per bit
         m_current = m_shunt_v / SHUNT_RESISTOR;
         m_power = m_current * m_bus_v;
+        mutex_exit(&m_mutex);
 
+        #if 0
         printf("Shunt voltage : %f V\n", m_shunt_v);
         printf("  Bus voltage : %f V\n", m_bus_v);
         printf("      Current : %f mA\n", m_current);
         printf("        Power : %f mW\n", m_power);
         printf("\n");
+        #endif
 
         if (m_callback) {
             m_callback(m_bus_v, m_current, m_power);

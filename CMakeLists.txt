@@ -79,11 +79,15 @@ pico_generate_pio_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/led/ws2812.pi
 pico_generate_pio_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/motor/quadrature_encoder.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
 pico_generate_pio_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/util/uart_tx.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
 
-image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/raspberry_logo.bmp ${PROJECT_BINARY_DIR}/generated)
-font_generate_header(${PROJECT_NAME} LiberationMono 16 LiberationMono_16 ${PROJECT_BINARY_DIR}/generated)
-font_generate_header(${PROJECT_NAME} LiberationSans:Bold 16 LiberationSans_16 ${PROJECT_BINARY_DIR}/generated)
-font_generate_header(${PROJECT_NAME} LiberationSans:Bold 24 LiberationSans_24 ${PROJECT_BINARY_DIR}/generated)
-font_generate_header(${PROJECT_NAME} LiberationSans:Bold 32 LiberationSans_32 ${PROJECT_BINARY_DIR}/generated)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/raspberry_logo.bmp Raspberry_Logo ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/battery.bmp Battery ${PROJECT_BINARY_DIR}/generated/resources)
+font_generate_header(${PROJECT_NAME} LiberationMono 16 LiberationMono_16 ${PROJECT_BINARY_DIR}/generated/resources)
+font_generate_header(${PROJECT_NAME} LiberationMono 24 LiberationMono_24 ${PROJECT_BINARY_DIR}/generated/resources)
+font_generate_header(${PROJECT_NAME} LiberationSans 16 LiberationSans_16 ${PROJECT_BINARY_DIR}/generated/resources)
+font_generate_header(${PROJECT_NAME} LiberationSans 24 LiberationSans_24 ${PROJECT_BINARY_DIR}/generated/resources)
+font_generate_header(${PROJECT_NAME} LiberationSans:Bold 16 LiberationSansBold_16 ${PROJECT_BINARY_DIR}/generated/resources)
+font_generate_header(${PROJECT_NAME} LiberationSans:Bold 24 LiberationSansBold_24 ${PROJECT_BINARY_DIR}/generated/resources)
+
 
 
 # Add the standard library to the build

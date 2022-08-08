@@ -16,63 +16,75 @@
 
 namespace Radio::FrSky {
 
-    #warning TODO - convert to class
+    struct Telemetry {
+        using app_id_type = uint16_t;
+        using data_type = uint32_t;
 
-    typedef struct {
-        uint16_t app_id;
-        uint32_t data;
-    } radio_telemetry_t;
+        app_id_type app_id;
+        data_type data;
 
+        static Telemetry null()
+        {
+            return { 
+                .app_id = 0x0000, 
+                .data = 0x00000000, 
+            };
+        }
 
-    static inline void radio_telemetry_null(radio_telemetry_t *event) 
-    {
-        event->app_id = 0x0000;
-        event->data = 0x00000000;
-    }
+        static Telemetry temperature1(uint8_t offset, uint32_t tempC) 
+        { 
+            return { 
+                .app_id = static_cast<app_id_type>(FRDID_T1_FIRST_ID+offset),
+                .data   = tempC,
+            };
+        }
 
-
-    static inline void radio_telemetry_temperature1(radio_telemetry_t *event, uint8_t offset, uint32_t tempC) 
-    { 
-        event->app_id = FRDID_T1_FIRST_ID+offset;
-        event->data = tempC;
-    }
-
-
-    static inline void radio_telemetry_temperature2(radio_telemetry_t *event, uint8_t offset, uint32_t tempC) 
-    { 
-        event->app_id = FRDID_T2_FIRST_ID+offset;
-        event->data = tempC;
-    }
-
-
-    static inline void radio_telemetry_cells(radio_telemetry_t *event, uint8_t battery_id, uint8_t offset, uint8_t n_cells, float voltage0, float voltage1)
-    {
-        event->app_id = FRDID_CELLS_FIRST_ID+offset;
-
-        uint32_t cv1 = voltage0 * 500;
-        uint32_t cv2 = voltage1 * 500;
-
-        event->data = (cv1 & 0x0fff) << 20 | (cv2 & 0x0fff) << 8 | n_cells << 4 | battery_id;
-    }
+        static Telemetry temperature2(uint8_t offset, uint32_t tempC) 
+        { 
+            return { 
+                .app_id = static_cast<app_id_type>(FRDID_T2_FIRST_ID+offset),
+                .data   = tempC,
+            };
+        }
 
 
-    static inline void radio_telemetry_a3(radio_telemetry_t *event, uint8_t offset, float voltage)
-    {
-        event->app_id = FRDID_A3_FIRST_ID+offset;
-        event->data = voltage*100;
-    }
+        static Telemetry cells(uint8_t battery_id, uint8_t offset, uint8_t n_cells, float voltage0, float voltage1)
+        {
+            uint16_t app_id = FRDID_CELLS_FIRST_ID+offset;
+            uint32_t cv1 = voltage0 * 500;
+            uint32_t cv2 = voltage1 * 500;
+            uint32_t data = (cv1 & 0x0fff) << 20 | (cv2 & 0x0fff) << 8 | n_cells << 4 | battery_id;
+            return {
+                .app_id = app_id,
+                .data   = data,
+            };
+        }
 
-    static inline void radio_telemetry_a4(radio_telemetry_t *event, uint8_t offset, float voltage)
-    {
-        event->app_id = FRDID_A4_FIRST_ID+offset;
-        event->data = voltage*100;
-    }
+
+        static Telemetry a3(uint8_t offset, float voltage)
+        {
+            return {
+                .app_id = static_cast<app_id_type>(FRDID_A3_FIRST_ID+offset),
+                .data   = static_cast<data_type>(voltage*100),
+            };
+        }
+
+        static Telemetry a4(uint8_t offset, float voltage)
+        {
+            return {
+                .app_id = static_cast<app_id_type>(FRDID_A4_FIRST_ID+offset),
+                .data   = static_cast<data_type>(voltage*100),
+            };
+        }
 
 
-    static inline void radio_telemetry_current(radio_telemetry_t *event, uint8_t offset, float current_ma)
-    {
-        event->app_id = FRDID_CURR_FIRST_ID+offset;
-        event->data = current_ma;
-    }
+        static Telemetry current(uint8_t offset, float current_ma)
+        {
+            return {
+                .app_id = static_cast<app_id_type>(FRDID_CURR_FIRST_ID+offset),
+                .data   = static_cast<data_type>(current_ma),
+            };
+        }
+    };
 
 }

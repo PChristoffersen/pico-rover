@@ -42,7 +42,7 @@ Receiver::Receiver(uart_inst_t *uart, uint tx_pin, uint rx_pin, uint baudrate) :
 
 void Receiver::init()
 {
-    queue_init(&m_telemetry_queue, sizeof(radio_telemetry_t), TELEMETRY_QUEUE_SIZE);
+    queue_init(&m_telemetry_queue, sizeof(Telemetry), TELEMETRY_QUEUE_SIZE);
 }
 
 
@@ -139,7 +139,7 @@ void Receiver::begin_read_uplink()
 
 
 
-bool Receiver::telemetry_push(const radio_telemetry_t &event)
+bool Receiver::telemetry_push(const Telemetry &event)
 {
     #if DEBUG_USE_RECEIVER_UART
     return false;
@@ -151,7 +151,7 @@ bool Receiver::telemetry_push(const radio_telemetry_t &event)
 
 void Receiver::telemetry_flush()
 {
-    radio_telemetry_t event;
+    Telemetry event;
     while (queue_try_remove(&m_telemetry_queue, &event));
 }
 
@@ -330,7 +330,7 @@ bool Receiver::do_wait_write_uplink(absolute_time_t &wait)
         return true;
     }
 
-    radio_telemetry_t event;
+    Telemetry event;
     if (!queue_try_remove(&m_telemetry_queue, &event)) {
         // No data
         begin_read_control();

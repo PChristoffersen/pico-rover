@@ -32,7 +32,7 @@ namespace Radio::FrSky {
 
             absolute_time_t update();
 
-            bool telemetry_push(const radio_telemetry_t &event);
+            bool telemetry_push(const Telemetry &event);
 
         private:
             static constexpr uint8_t RECEIVER_ID = 0x67;

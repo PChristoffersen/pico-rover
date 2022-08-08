@@ -9,6 +9,9 @@
 #pragma once
 
 #include <pico/stdlib.h>
+#include <pico/mutex.h>
+#include <util/mutex.h>
+
 
 class INA219 {
     public:
@@ -33,11 +36,18 @@ class INA219 {
 
         absolute_time_t update();
 
+        float get_shunt_voltage() const { MUTEX_GUARD(m_mutex); return m_shunt_v; }
+        float get_bus_voltage() const   { MUTEX_GUARD(m_mutex); return m_bus_v; }
+        float get_current() const       { MUTEX_GUARD(m_mutex); return m_current; }
+        float get_power() const         { MUTEX_GUARD(m_mutex); return m_power; }
+
         void set_callback(callback_t cb) { m_callback = cb; }
 
     private:
         static constexpr int64_t UPDATE_INTERVAL = 250000;
         static constexpr float SHUNT_RESISTOR = 0.1f; // 0.1 Ohm shunt resistor
+
+        mutable mutex_t m_mutex;
 
         addr_t m_address;
         bool m_present;

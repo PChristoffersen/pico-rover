@@ -5,7 +5,7 @@ import subprocess
 from argparse import ArgumentParser
 from pathlib import Path
 from dataclasses import dataclass
-from PIL import Image, ImageFont, ImageDraw
+from PIL import ImageFont
 
 
 OLED_PAGE_HEIGHT = 8
@@ -107,6 +107,7 @@ def render_glyphs(font: ImageFont, glyph_range):
 def write_header(font_name: str, font: ImageFont, font_height: int, glyph_range, glyphs: list[Glyph], header_path: Path):
     descent, ascent = font.getmetrics()
     
+    header_path.parent.mkdir(exist_ok=True)
     with open(f'{header_path}', 'wt') as file:
         file.write(f"#pragma once\n")
         file.write(f"\n")
@@ -136,14 +137,14 @@ def write_header(font_name: str, font: ImageFont, font_height: int, glyph_range,
 
         file.write(f"    }};\n")
         file.write(f"\n")
-        file.write(f"    static constexpr ::OLED::Font {font_name} {{\n")
+        file.write(f"    static constexpr ::OLED::DynamicFont {font_name} {{\n")
         file.write(f"        {font_size}, // Size\n")
         file.write(f"        {descent}, // Descent\n")
         file.write(f"        {ascent}, // Ascent\n")
         file.write(f"        0x{glyph_range[0]:02x}u, // First char\n")
         file.write(f"        0x{glyph_range[1]:02x}u, // Last char\n")
-        file.write(f"        _{font_name}_data,\n")
-        file.write(f"        _{font_name}_glyphs\n")
+        file.write(f"        _{font_name}_glyphs,\n")
+        file.write(f"        _{font_name}_data\n")
         file.write(f"    }};\n")
         file.write(f"\n")
         file.write(f"}}\n")

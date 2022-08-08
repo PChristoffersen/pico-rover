@@ -30,6 +30,14 @@ namespace OLED {
 
             static constexpr uint COLUMNS { 128 };
             static constexpr uint PAGES { 8 };
+            static constexpr uint PAGE_BITS { 8 };
+            static constexpr uint8_t PAGE_MASK { 0b111 };
+
+            enum class DrawOp {
+                ADD,
+                SUBTRACT,
+                INVERT,
+            };
 
             struct Region {
                 uint8_t c1;
@@ -40,8 +48,8 @@ namespace OLED {
                 void reset() { c1 = COLUMNS; p1 = PAGES; c2 = p2 = 0u; }
                 void expand(int x1, int y1, int x2, int y2)
                 {
-                    int _p1 = y1/8;
-                    int _p2 = y2/8;
+                    int _p1 = y1/PAGE_BITS;
+                    int _p2 = y2/PAGE_BITS;
                     if (x1<c1) c1 = std::max<int>(x1, 0);
                     if (x2>c2) c2 = std::min<int>(x2, COLUMNS-1);
                     if (_p1<p1) p1 = std::max<int>(_p1, 0);
@@ -53,16 +61,15 @@ namespace OLED {
 
             void clear();
 
-            void draw_hline(int x, int y, uint w, bool clear = false);
-            void draw_vline(int x, int y, uint h, bool clear = false);
-            void draw_rect(int x, int y, uint w, uint h, bool clear = false);
-            void fill_rect(int x, int y, uint w, uint h, bool clear = false);
-            void draw_bitmap(int x, int y, const uint8_t *bitmap, uint w, uint h, bool clear = false);
-            void draw_bitmap(int x, int y, const Image &image, bool clear = false)
+            void draw_hline(int x, int y, uint w, DrawOp op = DrawOp::ADD);
+            void draw_vline(int x, int y, uint h, DrawOp op = DrawOp::ADD);
+            void draw_rect(int x, int y, uint w, uint h, DrawOp op = DrawOp::ADD);
+            void fill_rect(int x, int y, uint w, uint h, DrawOp op = DrawOp::ADD);
+            void draw_bitmap(int x, int y, const Image &image, DrawOp op = DrawOp::ADD)
             {
-                draw_bitmap(x, y, image.buffer(), image.width(), image.height(), clear);
+                draw_bitmap(x, y, image.buffer(), image.width(), image.height(), op);
             }
-            void draw_text(int x, int y, const char *text, const Font &font, bool clear = false);
+            void draw_text(int x, int y, const char *text, const Font &font, DrawOp op = DrawOp::ADD);
 
 
 
@@ -81,7 +88,9 @@ namespace OLED {
             void clear_dirty() { m_dirty = false; m_dirty_region.reset(); }
 
 
+            #ifndef NDEBUG
             void print(uint n_pgs = PAGES);
+            #endif
         private:
             using buffer_type = std::array<column_type, COLUMNS*PAGES>;
 
@@ -90,6 +99,7 @@ namespace OLED {
             Region m_dirty_region;
             bool m_dirty;
 
+            void draw_bitmap(int x, int y, const uint8_t *bitmap, uint w, uint h, DrawOp op);
     };
 
 }
