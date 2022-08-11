@@ -8,61 +8,64 @@
  */
 #pragma once
 
+#include <functional>
 #include <pico/stdlib.h>
 #include <pico/mutex.h>
-#include <util/mutex.h>
+#include <util/locking.h>
+
+namespace Sensor {
+
+    class INA219 {
+        public:
+            using callback_t = std::function<void(float voltage, float current, float power)>;
+            using addr_t = uint8_t;
+
+            enum class Address: addr_t {
+                INA0 = 0x40,
+                INA1 = 0x41,
+                INA2 = 0x42,
+                INA3 = 0x43,
+            };
 
 
-class INA219 {
-    public:
-        using callback_t = void (*)(float voltage, float current, float power);
-        using addr_t = uint8_t;
+            INA219(Address addr);
+            INA219(const INA219&) = delete; // No copy constructor
+            INA219(INA219&&) = delete; // No move constructor
 
-        enum class Address: addr_t {
-            INA0 = 0x40,
-            INA1 = 0x41,
-            INA2 = 0x42,
-            INA3 = 0x43,
-        };
+            void init();
 
+            bool present() const { return m_present; }
 
-        INA219(Address addr);
-        INA219(const INA219&) = delete; // No copy constructor
-        INA219(INA219&&) = delete; // No move constructor
+            absolute_time_t update();
 
-        void init();
+            float get_shunt_voltage() const { MUTEX_GUARD(m_mutex); return m_shunt_v; }
+            float get_bus_voltage() const   { MUTEX_GUARD(m_mutex); return m_bus_v; }
+            float get_current() const       { MUTEX_GUARD(m_mutex); return m_current; }
+            float get_power() const         { MUTEX_GUARD(m_mutex); return m_power; }
 
-        bool present() const { return m_present; }
+            void set_callback(callback_t cb) { m_callback = cb; }
 
-        absolute_time_t update();
+        private:
+            static constexpr int64_t UPDATE_INTERVAL = 250000;
+            static constexpr float SHUNT_RESISTOR = 0.1f; // 0.1 Ohm shunt resistor
 
-        float get_shunt_voltage() const { MUTEX_GUARD(m_mutex); return m_shunt_v; }
-        float get_bus_voltage() const   { MUTEX_GUARD(m_mutex); return m_bus_v; }
-        float get_current() const       { MUTEX_GUARD(m_mutex); return m_current; }
-        float get_power() const         { MUTEX_GUARD(m_mutex); return m_power; }
+            mutable mutex_t m_mutex;
 
-        void set_callback(callback_t cb) { m_callback = cb; }
+            addr_t m_address;
+            bool m_present;
 
-    private:
-        static constexpr int64_t UPDATE_INTERVAL = 250000;
-        static constexpr float SHUNT_RESISTOR = 0.1f; // 0.1 Ohm shunt resistor
+            absolute_time_t m_last_update;
 
-        mutable mutex_t m_mutex;
+            // Readings
+            float m_shunt_v;
+            float m_bus_v;
+            float m_current;
+            float m_power;
 
-        addr_t m_address;
-        bool m_present;
+            callback_t m_callback;
 
-        absolute_time_t m_last_update;
+            bool write_reg(uint8_t reg, uint16_t value);
+            bool read_reg(uint8_t reg, uint16_t &value);
+    };
 
-        // Readings
-        float m_shunt_v;
-        float m_bus_v;
-        float m_current;
-        float m_power;
-
-        callback_t m_callback;
-
-        bool write_reg(uint8_t reg, uint16_t value);
-        bool read_reg(uint8_t reg, uint16_t &value);
-};
-
+}

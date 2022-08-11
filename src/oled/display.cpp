@@ -1,15 +1,13 @@
-#include "oled.h"
+#include "display.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pico/stdlib.h>
 
+#include <util/i2c_bus.h>
 #include "ssd1306.h"
-#include "../i2c_bus.h"
 
-
-#include <resources/raspberry_logo.image.h>
 
 namespace OLED {
 
@@ -89,7 +87,9 @@ void Display::init()
     i2c_bus_acquire_blocking();
 
     uint8_t data = 0x00;
-    if (i2c_read_blocking(i2c_default, m_address, &data, sizeof(data), false)<static_cast<int>(sizeof(data))) {
+    int res = i2c_read_blocking(i2c_default, m_address, &data, sizeof(data), false);
+    if (res < static_cast<int>(sizeof(data))) {
+        printf("No Display!!!: %d\n", res);
         m_present = false;
         i2c_bus_release();
         return;
@@ -169,8 +169,8 @@ void Display::init()
     send_cmds(cmds, sizeof(cmds));
 
     m_framebuffer.clear();
-    m_framebuffer.draw_bitmap((m_framebuffer.width()-Resource::Image::Raspberry_Logo.width())/2, (m_framebuffer.height()-Resource::Image::Raspberry_Logo.height())/2, Resource::Image::Raspberry_Logo);
     send_data_sync();
+    m_framebuffer.clear_dirty();
 
     uint8_t cmds2[] = {
         SSD1306_SET_DISP_ON, // turn display on
@@ -182,13 +182,25 @@ void Display::init()
 
 
 
-void Display::update()
+void Display::update_blocking()
 { 
-    if (!m_framebuffer.is_dirty()) 
+    if (!m_framebuffer.is_dirty() || !m_present) 
         return;
     i2c_bus_acquire_blocking();
     send_data_async();
     m_framebuffer.clear_dirty();
 }
+
+bool Display::update_block_until(absolute_time_t until)
+{
+    if (!m_framebuffer.is_dirty() || !m_present) 
+        return true;
+    if (!i2c_bus_acquire_block_until(until)) 
+        return false;
+    send_data_async();
+    m_framebuffer.clear_dirty();
+    return true;
+}
+
 
 }

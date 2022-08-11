@@ -5,11 +5,11 @@
 #include <hardware/i2c.h>
 
 #include <boardconfig.h>
-#include "../i2c_bus.h"
+#include <util/i2c_bus.h>
 #include "bno055_regs.h"
 
 
-
+namespace Sensor {
 
 
 BNO055::BNO055(Address addr):
@@ -61,10 +61,20 @@ void BNO055::init()
     i2c_bus_acquire_blocking();
 
     // Set page to zero
-    if (!write_reg8(BNO055_PAGE_ID_REG, BNO055_PAGE_ZERO)) {
-        m_present = false;
-        i2c_bus_release();
-        return;
+    // The BNO005 chip appears to take a long time to come out of reset
+    // and it messes up the i2c bus if requested while booting
+    // until we are reasonably sure the chip is present or missing.
+    auto start = get_absolute_time();
+    while (true) {
+        if (write_reg8(BNO055_PAGE_ID_REG, BNO055_PAGE_ZERO)) {
+            break;
+        }
+        else if (absolute_time_diff_us(start, get_absolute_time()) > MAX_RESET_TIME_US) {
+            m_present = false;
+            i2c_bus_release();
+            return;
+        }
+        sleep_ms(10);
     }
 
     // Verify chip id
@@ -76,37 +86,39 @@ void BNO055::init()
     }
     m_present = true;
 
-    printf("Detected BNO055\n");
-
     uint8_t buf[8];
     read(0, buf, sizeof(buf));
     m_sw_rev = static_cast<uint16_t>(buf[BNO055_SW_REV_ID_MSB_REG])<<8 | static_cast<uint16_t>(buf[BNO055_SW_REV_ID_LSB_REG]);
-    m_bl_rev = (uint16_t)buf[BNO055_BL_REV_ID_REG];
+    m_bl_rev = buf[BNO055_BL_REV_ID_REG];
+    #if 0
     printf("  ChipID: %02x\n", buf[BNO055_CHIP_ID_REG]);
     printf("   AccID: %02x\n", buf[BNO055_ACCEL_REV_ID_REG]);
     printf("   MagID: %02x\n", buf[BNO055_MAG_REV_ID_REG]);
     printf("   GyrID: %02x\n", buf[BNO055_GYRO_REV_ID_REG]);
     printf("  SW Rev: %04x\n", m_sw_rev);
     printf("  BL Rev: %02x\n", m_bl_rev);
-
+    #endif
 
     // Switch to config mode
     write_reg8(BNO055_OPERATION_MODE_REG, BNO055_OPERATION_MODE_CONFIG);
 
     // Reset the chip
-    printf("Reset chip\n");
     write_reg8(BNO055_SYS_RST_REG, BNO055_SYS_RST_MSK);
+    start = get_absolute_time();
     sleep_ms(50);
     while (true) {
         if (read_reg8(BNO055_CHIP_ID_REG, reg)) {
             if (reg==BNO055_CHIP_ID)
                 break;
         }
+        else if (absolute_time_diff_us(start, get_absolute_time()) > MAX_RESET_TIME_US) {
+            m_present = false;
+            i2c_bus_release();
+            return;
+        }
         sleep_ms(10);
     }
     sleep_ms(50);
-    printf("\n");
-    printf("Reset complete\n");
 
     // Set to normal power mode 
     //write_reg8(BNO055_POWER_MODE_REG, BNO055_POWER_MODE_NORMAL);
@@ -129,4 +141,6 @@ void BNO055::init()
 absolute_time_t BNO055::update()
 {
     return make_timeout_time_ms(500);
+}
+
 }

@@ -4,8 +4,9 @@
 #include <pico/stdlib.h>
 #include <hardware/i2c.h>
 
-#include "../i2c_bus.h"
+#include <util/i2c_bus.h>
 
+namespace Sensor {
 
 static constexpr uint8_t INA219_REG_CONFIG       = 0x00; // config register address
 static constexpr uint8_t INA219_REG_SHUNTVOLTAGE = 0x01; // shunt voltage register
@@ -151,7 +152,7 @@ absolute_time_t INA219::update()
     auto now = get_absolute_time();
     if (absolute_time_diff_us(m_last_update, now)>UPDATE_INTERVAL) {
         if (!i2c_bus_acquire_timeout_us(50)) {
-            return delayed_by_us(now, 50);
+            return delayed_by_us(now, 100);
         }
 
 
@@ -184,11 +185,10 @@ absolute_time_t INA219::update()
 
       bail:
         i2c_bus_release();
-        m_last_update = now;
+        m_last_update = delayed_by_us(m_last_update, UPDATE_INTERVAL);
     }
     return delayed_by_us(m_last_update, UPDATE_INTERVAL);
 }
 
 
-
-
+}

@@ -9,7 +9,8 @@ namespace LED {
 
 Single::Single(uint pin) :
     m_pin { pin },
-    m_blinking { false }
+    m_blinking { false },
+    m_interval { DEFAULT_BLINK_INTERVAL }
 {
 }
 
@@ -36,10 +37,13 @@ void Single::off()
 }
 
 
-void Single::blink()
+bool Single::blink()
 {
+    if (m_blinking) 
+        return true;
     m_blink_last = get_absolute_time();
     m_blinking = true;
+    return false;
 }
 
 
@@ -49,8 +53,7 @@ absolute_time_t Single::update()
         return make_timeout_time_ms(60000);
 
     static bool state = false;
-    absolute_time_t now = get_absolute_time();
-    if (absolute_time_diff_us(m_blink_last, now)>BLINK_INTERVAL) {
+    if (absolute_time_diff_us(m_blink_last, get_absolute_time())>m_interval) {
         state = !state;
         if (state) {
             gpio_put(m_pin, 1);
@@ -58,9 +61,9 @@ absolute_time_t Single::update()
         else {
             gpio_put(m_pin, 0);
         }
-        m_blink_last = now;
+        m_blink_last = delayed_by_us(m_blink_last, m_interval);
     }
-    return delayed_by_us(m_blink_last, BLINK_INTERVAL);
+    return delayed_by_us(m_blink_last, m_interval);
 }
 
 

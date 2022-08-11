@@ -15,6 +15,8 @@ namespace LED {
 
     class Single {
         public:
+            static constexpr int64_t DEFAULT_BLINK_INTERVAL = 500000u;
+
             Single(uint pin);
             Single(const Single&) = delete; // No copy constructor
             Single(Single&&) = delete; // No move constructor
@@ -23,15 +25,18 @@ namespace LED {
 
             void on();
             void off();
-            void blink();
+            bool blink();
 
             absolute_time_t update();
 
+            bool get_blinking() const { return m_blinking; }
+            void set_interval(int64_t interval);
+
         private:
-            static constexpr int64_t BLINK_INTERVAL = 500000u;
 
             uint m_pin;
             bool m_blinking;
+            int64_t m_interval;
             absolute_time_t m_blink_last;
     };
 

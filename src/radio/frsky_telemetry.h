@@ -82,7 +82,7 @@ namespace Radio::FrSky {
         {
             return {
                 .app_id = static_cast<app_id_type>(FRDID_CURR_FIRST_ID+offset),
-                .data   = static_cast<data_type>(current_ma),
+                .data   = static_cast<data_type>(current_ma/100.0f),
             };
         }
     };

@@ -21,9 +21,10 @@ static inline void _pixel_op(uint8_t &pix, uint8_t val, Framebuffer::DrawOp op)
 }
 
 
-Framebuffer::Framebuffer() 
+Framebuffer::Framebuffer() :
+    m_dirty { false }
 {
-    clear();
+    m_buffer.fill(0x00);
 }
 
 
@@ -136,7 +137,6 @@ void Framebuffer::fill_rect(int x, int y, uint w, uint h, DrawOp op)
     // If end is aligned
     if ((y2&PAGE_MASK) != PAGE_MASK) {
         // Fill bottom
-        printf("    BOT: %d\n", y2&PAGE_MASK);
         auto buf = page(p2);
         uint val = 0x00;
         for (int bit=0; bit<=(y2&PAGE_MASK); ++bit) {

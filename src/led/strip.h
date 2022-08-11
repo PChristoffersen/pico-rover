@@ -26,7 +26,6 @@ namespace LED {
         protected:
             using pixel_type = uint32_t;
 
-            static constexpr uint MAX_STRIPS = 2;
             static constexpr float STRIP_FREQUENCY = 800000.0f;
             static constexpr uint64_t STRIP_RESET_DELAY_US = 400u;
 
@@ -48,7 +47,7 @@ namespace LED {
             static uint m_dma_irq_index;
             static PIO m_pio;
             static uint m_program_offset;
-            static StripBase *m_strips[MAX_STRIPS];
+            static StripBase *m_strips[NUM_DMA_CHANNELS];
 
             StripBase(PIO pio, uint pin, bool is_rgbw);
 

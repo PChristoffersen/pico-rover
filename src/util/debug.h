@@ -14,6 +14,11 @@
 void debug_init();
 
 
+#ifndef NDEBUG
+void debug_i2c_scan_bus();
+#endif
+
+
 #if 0
 #define debug_pin_init() {}
 #define debug_pin0(state) {}
@@ -25,8 +30,8 @@ void debug_init();
 #include "../boardconfig.h"
 #define DEBUG_PIN0 SERVO1_PIN
 #define DEBUG_PIN1 SERVO2_PIN
-#define DEBUG_PIN2 RADIO_RECEIVER_TX_PIN
-#define DEBUG_PIN3 RADIO_RECEIVER_RX_PIN
+//#define DEBUG_PIN2 RADIO_RECEIVER_TX_PIN
+//#define DEBUG_PIN3 RADIO_RECEIVER_RX_PIN
 
 static inline void debug_pin_init()
 {

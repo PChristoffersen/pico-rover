@@ -31,6 +31,7 @@
 #define BATTERY_SENSE_PIN 28
 #define BATTERY_SENSE_R1 68200.0f
 #define BATTERY_SENSE_R2 32000.0f
+#define BATTERY_TYPE LIPO_2CELL
 
 
 /* Motor control */
@@ -53,13 +54,6 @@
 #define MOTOR4_ENCB_PIN   3
 #define MOTOR_ENCODER_PIO pio1
 #define MOTOR_TARGET_VOLTAGE 6.5f
-#define MOTOR_SUPPLY_MIN_VOLTAGE 7.4f
-#define MOTOR_SUPPLY_MAX_VOLTAGE 8.4f
-#define MOTOR_PWM_MAX 1000
-#define MOTOR_PWM_WRAP 1250
-//#define MOTOR_PWM_FREQUENCY 12500.0f // 1.25 kHz
-#define MOTOR_PWM_FREQUENCY 25000.0f // 25 kHz
-//#define MOTOR_PWM_FREQUENCY 250.0f // 2.5 kHz
 
 
 /* Misc */
@@ -91,10 +85,11 @@
 #ifndef BOARD_GPIO_STDIO
 #define BOARD_GPIO_STDIO 0
 #endif
-#if BOARD_GPIO_STDIO
-#define DEBUG_UART_PIO pio0
-#define DEBUG_UART_TX BOARD_GPIO0_PIN
-#define DEBUG_UART_SPEED 115200
-#endif
+#define DEBUG_GPIO_PIO pio0
+constexpr bool DEBUG_GPIO_ENABLED { BOARD_GPIO_STDIO };
+constexpr uint DEBUG_GPIO_TX_PIN { BOARD_GPIO0_PIN };
+//constexpr uint DEBUG_UART_SPEED { 115200 };
+//constexpr uint DEBUG_GPIO_SPEED { 460800 };
+constexpr uint DEBUG_GPIO_SPEED { 921600 };
 
 #endif

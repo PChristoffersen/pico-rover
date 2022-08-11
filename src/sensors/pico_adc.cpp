@@ -5,8 +5,9 @@
 #include <pico/mutex.h>
 #include <hardware/adc.h>
 
+namespace Sensor {
 
-static inline uint _adc_from_pin(uint pin)
+static constexpr inline uint _adc_from_pin(uint pin)
 {
     return pin-26;
 }
@@ -63,7 +64,7 @@ absolute_time_t PicoADC::update()
             _handle_temp(adc_voltage);
         }
 
-        m_last_update = now;
+        m_last_update = delayed_by_us(m_last_update, UPDATE_INTERVAL);
     }
 
     return delayed_by_us(m_last_update, UPDATE_INTERVAL);
@@ -120,4 +121,4 @@ void PicoADC::_handle_temp(float adc_voltage)
 }
 
 
-
+}

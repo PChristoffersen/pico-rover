@@ -17,7 +17,7 @@ static constexpr bool LED_STRIP_DMA_IRQ_SHARED   = true;
 static constexpr uint LED_STRIP_DMA_IRQ_PRIORITY = 1;
 
 PIO StripBase::m_pio = nullptr;
-StripBase *StripBase::m_strips[MAX_STRIPS];
+StripBase *StripBase::m_strips[NUM_DMA_CHANNELS];
 uint StripBase::m_program_offset = 0;
 uint StripBase::m_dma_irq_index = 0;
 
@@ -65,8 +65,8 @@ void StripBase::global_init()
     if (initialized)
         return;
 
-    for (uint i=0; i<count_of(m_strips); ++i) {
-        m_strips[i] = nullptr;
+    for (auto &strip : m_strips) {
+        strip = nullptr;
     }
 
     // Setup PIO program
@@ -90,16 +90,6 @@ void StripBase::global_init()
     irq_set_enabled(dma_irq, true);
 
     initialized = true;
-}
-
-void StripBase::global_add_strip(StripBase *strip)
-{
-    for (uint i=0; i<count_of(m_strips); ++i) {
-        if (m_strips[i]==nullptr) {
-            m_strips[i] = strip;
-            break;
-        }
-    }
 }
 
 
@@ -136,7 +126,7 @@ void StripBase::base_init(volatile void *dma_addr, size_t dma_count)
                           dma_count,
                           false);
 
-    global_add_strip(this);
+    m_strips[m_dma] = this;
 
     if (get_core_num()==0) {
         dma_channel_set_irq0_enabled(m_dma, true);

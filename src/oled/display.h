@@ -33,9 +33,12 @@ namespace OLED {
             void init();
             bool present() { return m_present; }
 
-            void update();
+            void update_blocking();
+            bool update_block_until(absolute_time_t until);
 
-            Framebuffer &frame() { return m_framebuffer; }
+            bool update_needed() const { return m_present && m_framebuffer.is_dirty(); }
+
+            Framebuffer &framebuffer() { return m_framebuffer; }
 
         private:
             addr_t m_address;

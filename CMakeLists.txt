@@ -29,12 +29,13 @@ include(font_generate.cmake)
 
 add_executable(${PROJECT_NAME} 
     src/main.cpp
-    src/i2c_bus.cpp
     src/boardconfig.cpp
+    src/displayrender.cpp
     src/led/single.cpp
     src/led/strip.cpp
-    src/motor/motor.cpp
-    src/oled/oled.cpp
+    src/motor/dcmotor.cpp
+    src/motor/encoder.cpp
+    src/oled/display.cpp
     src/oled/framebuffer.cpp
     src/radio/frsky_receiver.cpp
     src/servo/servo.cpp
@@ -42,6 +43,7 @@ add_executable(${PROJECT_NAME}
     src/sensors/pico_adc.cpp
     src/sensors/ina219.cpp
     src/util/debug.cpp
+    src/util/i2c_bus.cpp
 )
 
 
@@ -65,8 +67,8 @@ endif()
 target_include_directories(${PROJECT_NAME} AFTER PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_UART_ENABLE_CRLF_SUPPORT=0)
-target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_ENABLE_CRLF_SUPPORT=1)
-target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_DEFAULT_CRLF=1)
+target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_ENABLE_CRLF_SUPPORT=0)
+target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_DEFAULT_CRLF=0)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_UART_TX_PIN=16)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_UART_RX_PIN=17)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SDA_PIN=21)
@@ -83,10 +85,8 @@ image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/raspberry_
 image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/battery.bmp Battery ${PROJECT_BINARY_DIR}/generated/resources)
 font_generate_header(${PROJECT_NAME} LiberationMono 16 LiberationMono_16 ${PROJECT_BINARY_DIR}/generated/resources)
 font_generate_header(${PROJECT_NAME} LiberationMono 24 LiberationMono_24 ${PROJECT_BINARY_DIR}/generated/resources)
-font_generate_header(${PROJECT_NAME} LiberationSans 16 LiberationSans_16 ${PROJECT_BINARY_DIR}/generated/resources)
-font_generate_header(${PROJECT_NAME} LiberationSans 24 LiberationSans_24 ${PROJECT_BINARY_DIR}/generated/resources)
-font_generate_header(${PROJECT_NAME} LiberationSans:Bold 16 LiberationSansBold_16 ${PROJECT_BINARY_DIR}/generated/resources)
-font_generate_header(${PROJECT_NAME} LiberationSans:Bold 24 LiberationSansBold_24 ${PROJECT_BINARY_DIR}/generated/resources)
+font_generate_header(${PROJECT_NAME} LiberationSans:Bold 16 LiberationSans_16 ${PROJECT_BINARY_DIR}/generated/resources)
+font_generate_header(${PROJECT_NAME} LiberationSans:Bold 24 LiberationSans_24 ${PROJECT_BINARY_DIR}/generated/resources)
 
 
 
