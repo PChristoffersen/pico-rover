@@ -1,9 +1,11 @@
+#include <array>
 #include <stdio.h>
+#include <math.h>
 #include <pico/stdlib.h>
 #include <pico/unique_id.h>
 #include <pico/multicore.h>
-#include <hardware/clocks.h>
 #include <hardware/watchdog.h>
+#include <hardware/clocks.h>
 #include <hardware/i2c.h>
 
 
@@ -12,48 +14,13 @@
 #endif
 
 #include "boardconfig.h"
+#include "robot.h"
 #include "util/time.h"
 #include "util/debug.h"
-#include "util/i2c_bus.h"
 #include "util/battery.h"
-#include "led/single.h"
-#include "led/strip.h"
-#include "servo/servo.h"
-#include "motor/dcmotor.h"
-#include "oled/display.h"
-#include "radio/frsky_receiver.h"
-#include "sensors/bno0055.h"
-#include "sensors/pico_adc.h"
-#include "sensors/ina219.h"
 
-#include "displayrender.h"
 
-// Sensors
-static Sensor::PicoADC picoADC { BATTERY_SENSE_PIN, BATTERY_SENSE_R1, BATTERY_SENSE_R2 };
-static Sensor::INA219 currentSensor { Sensor::INA219::Address::INA0 };
-static Sensor::BNO055 imu;
-
-// Motors and servos
-Servo servos[] = {
-    { SERVO1_PIN },
-    { SERVO2_PIN },
-};
-Motor::DCMotor motors[] = {
-    { MOTOR1_IN1_PIN, MOTOR1_IN2_PIN, MOTOR_ENCODER_PIO, MOTOR1_ENCA_PIN, MOTOR1_ENCB_PIN },
-    { MOTOR2_IN1_PIN, MOTOR2_IN2_PIN, MOTOR_ENCODER_PIO, MOTOR2_ENCA_PIN, MOTOR2_ENCB_PIN },
-    { MOTOR3_IN1_PIN, MOTOR3_IN2_PIN, MOTOR_ENCODER_PIO, MOTOR3_ENCA_PIN, MOTOR3_ENCB_PIN },
-    { MOTOR4_IN1_PIN, MOTOR4_IN2_PIN, MOTOR_ENCODER_PIO, MOTOR4_ENCA_PIN, MOTOR4_ENCB_PIN },
-};
-
-// LED/Displays
-LED::Single led_builtin { PICO_DEFAULT_LED_PIN };
-LED::Strip<LED_STRIP_PIXEL_COUNT> led_strip { LED_STRIP_PIO, LED_STRIP_PIN, LED_STRIP_IS_RGBW };
-OLED::Display display { OLED_ADDRESS, OLED_TYPE };
-DisplayRender display_render { display };
-
-// Radio
-Radio::FrSky::Receiver receiver { RADIO_RECEIVER_UART, RADIO_RECEIVER_BAUD_RATE, RADIO_RECEIVER_TX_PIN, RADIO_RECEIVER_RX_PIN };
-
+static Robot robot;
 
 
 #define WATCHDOG_INTERVAL 1000u // 1 second
@@ -63,123 +30,93 @@ Radio::FrSky::Receiver receiver { RADIO_RECEIVER_UART, RADIO_RECEIVER_BAUD_RATE,
 
 
 
+static void drive_wheels(const Radio::FrSky::TaranisX9DPlus &mapping) {
+    auto stick_x = -mapping.right_x().asFloat();
+    auto stick_y =  mapping.right_y().asFloat();
+    auto rotate  =  mapping.left_x().asFloat();
+
+    float duty_fl, duty_fr, duty_rl, duty_rr;
+
+    auto angle = atan2f(stick_x, stick_y);
+    auto magnitude = sqrtf(stick_x*stick_x+stick_y*stick_y);
+
+    // Calculate translation
+    duty_fl = -sinf(angle-M_PI_4) * magnitude;
+    duty_fr =  sinf(angle+M_PI_4) * magnitude;
+    duty_rl = duty_fr;
+    duty_rr = duty_fl;
+
+    // Add rotation
+    duty_fl += rotate;
+    duty_fr -= rotate;
+    duty_rl += rotate;
+    duty_rr -= rotate;
+
+    // Scale down if any value is above 1.0
+    auto scale = std::max(std::max(std::abs(duty_fl), std::abs(duty_fr)), std::max(std::abs(duty_fl), std::abs(duty_fr)));
+    if (scale>1.0f) {
+        duty_fl /= scale;
+        duty_fr /= scale;
+        duty_rl /= scale;
+        duty_rr /= scale;
+    }
+
+    #if 0
+    static absolute_time_t ABSOLUTE_TIME_INITIALIZED_VAR(last, 0);
+    if (absolute_time_diff_us(last, get_absolute_time())>200000) {
+        printf("Drive:  %.2f,%.2f :  %.2f  %.2f  %.2f  %.2f\n", stick_x, stick_y, duty_fl, duty_fr, duty_rl, duty_rr);
+        last = delayed_by_us(get_absolute_time(), 200000);
+    }
+    #endif
+    auto &motors = robot.motors();
+    motors[Motor::DCMotor::FRONT_LEFT].set_duty(duty_fl);
+    motors[Motor::DCMotor::FRONT_RIGHT].set_duty(duty_fr);
+    motors[Motor::DCMotor::REAR_LEFT].set_duty(duty_rl);
+    motors[Motor::DCMotor::REAR_RIGHT].set_duty(duty_rr);
+}
+
 
 static absolute_time_t main_update() 
 {
     constexpr int64_t INTERVAL { 4000000ll };
 
-    static absolute_time_t ABSOLUTE_TIME_INITIALIZED_VAR(last_main, 0);
 
+    static absolute_time_t ABSOLUTE_TIME_INITIALIZED_VAR(last_main, 0);
     if (absolute_time_diff_us(last_main, get_absolute_time())>INTERVAL) {
         static const uint n_states = 4;
         static uint state = 0;
 
         printf("Tick: %d\n", state);
 
-        if (state==0) {
-            led_strip.fill(LED::Color::WHITE);
-            led_strip.show();
-        }
-        else {
-            led_strip.fill(LED::Color::BLACK);
-            led_strip.show();
-        }
 
-        #if 0
-        static int height = 24;
-        static int pos = 0;
-        display.framebuffer().clear();
-        display.framebuffer().draw_rect(32, pos, 64, height);
-        display.update();
-
-        pos++;
-        if (pos>=64) pos = -height;
-        #endif
-        #if 0
-        {
-            //main_oled_update();
-            display.framebuffer().fill_rect(0, 64-8, 64, 8, OLED::Framebuffer::DrawOp::SUBTRACT);
-            char buf[64];
-            sprintf(buf, "%.2fV", currentSensor.get_bus_voltage());
-            display.framebuffer().draw_text(0, 64-8, buf, OLED::Resource::Font::Fixed_8x8);
-            display.update();
-        }
-        #endif
-        /*
-        {
-            char buf[8];
-            sprintf(buf, "%u", state);
-            display.framebuffer().fill_rect(128-32, 64-16, 32, 16, OLED::Framebuffer::DrawOp::SUBTRACT);
-            display.framebuffer().draw_text(128-32, 64-16, buf, OLED::Resource::Font::Fixed_12x16);
-            display.update();
-        }
-        */
-
-        #if 0
-        motor_encoder_fetch_request(MOTOR_1);
-        motor_encoder_fetch_request(MOTOR_2);
-        motor_encoder_fetch_request(MOTOR_3);
-        motor_encoder_fetch_request(MOTOR_4);
-
-        int32_t enc1 = motor_encoder_fetch(MOTOR_1);
-        int32_t enc2 = motor_encoder_fetch(MOTOR_2);
-        int32_t enc3 = motor_encoder_fetch(MOTOR_3);
-        int32_t enc4 = motor_encoder_fetch(MOTOR_4);
-        printf("Encoder: %8d  %8d  %8d  %8d\n", enc1, enc2, enc3, enc4);
-        #endif
-
-        //gpio_put(GENERIC_INTR_PIN, state&1);
-
-        //bus_scan();
-
-        #if 0
-        
-        #if 1
         switch (state) {
             case 0: 
                 {
-                    motor_put(MOTOR_1, 0.0f);
-                    motor_put(MOTOR_2, 0.0f);
-                    motor_put(MOTOR_3, 0.0f);
-                    motor_put(MOTOR_4, 0.0f);
                 }
                 break;
             case 1: 
                 {
-                    motor_put(MOTOR_1, 0.0f);
-                    motor_put(MOTOR_2, 0.0f);
-                    motor_put(MOTOR_3, 0.0f);
-                    motor_put(MOTOR_4, 0.0f);
                 }
                 break;
             case 2: 
                 {
-                    motor_put(MOTOR_1, 1.0f);
-                    motor_put(MOTOR_2, 1.0f);
-                    motor_put(MOTOR_3, 1.0f);
-                    motor_put(MOTOR_4, 1.0f);
+                    robot.receiver().print_stats();
+                    robot.telemetry_provider().print_stats();
                 }
                 break;
             case 3: 
                 {
-                    motor_put(MOTOR_1, 1.0f);
-                    motor_put(MOTOR_2, 1.0f);
-                    motor_put(MOTOR_3, 1.0f);
-                    motor_put(MOTOR_4, 1.0f);
                 }
                 break;
         }
-        #else
-        //motor_set_enabled(motor, true);
-        //motor_set_duty(motor, MOTOR_PWM_MAX);
-        #endif
-        #endif
+
+
         state++;
         if (state>=n_states) state = 0;
         last_main = delayed_by_us(last_main, INTERVAL);
     }
 
-    return delayed_by_us(last_main, INTERVAL);
+    return make_timeout_time_us(1000);
 }
 
 
@@ -218,20 +155,20 @@ static void print_banner()
     printf("       Board-id: %s\n", board_id);
 
     printf("           Boot: ");
-    if (watchdog_caused_reboot()) {
+    if (robot.watchdog().caused_reboot()) {
         printf("Rebooted by Watchdog!\n");
     }
     else {
         printf("Clean boot\n");
     }
     printf("  CPU Frequency: %.3f MHz\n", clock_get_hz(clk_sys)/1000000.0f);
-    if (imu.present()) {
-        printf("            IMU: Present (sw: %04x)\n", imu.sw_rev());
+    if (robot.imu().present()) {
+        printf("            IMU: Present (sw: %04x)\n", robot.imu().sw_rev());
     }
     else {
         printf("            IMU: Not found\n");
     }
-    printf("        Display: %s\n", display.present()?"Present":"Not found");
+    printf("        Display: %s\n", robot.display().present()?"Present":"Not found");
 
     printf("--------------------------------------------\n");
 
@@ -244,59 +181,49 @@ static void print_banner()
 static void init() 
 {
 
-    led_builtin.init();
-    led_builtin.on();
-
-    debug_pin0(true);
-    i2c_bus_init();
-
-    #if 0
-    for (uint i=0; i<count_of(servos); ++i) {
-        servos->init();
-    }
-    #endif
-    #if 0
-    for (uint i=0; i<count_of(motors); ++i) {
-        motors->init();
-    }
-    #endif
-    led_strip.init();
-    #ifdef USE_RADIO
-    receiver.init();
-    #endif
-    picoADC.init();
-    debug_pin1(true);
-    currentSensor.init();
-    debug_pin2(true);
-    imu.init();
-    debug_pin3(true);
-    display.init();
-    display_render.init();
+    robot.init();
 
     // Register callbacks
-    picoADC.set_battery_cb([](auto voltage){
-        // Set motor supply voltage
-        Motor::DCMotor::set_supply_voltage(voltage);
-        
-        #if 0
-        // Push radio telemetry event
-        radio_telemetry_cells(&event, 0x00, 0, 2, voltage/2.0f, voltage/2.0f);
-        radio_receiver_telemetry_push(&event);
-        #endif
+    robot.receiver_listener().add_callback([](auto &channels, auto &mapping){
+        if (!channels.sync() || channels.flags().frameLost()) {
+            robot.set_armed(false);
+            return;
+        }
+
+        robot.set_armed(mapping.sf());
+        if (robot.is_armed()) {
+            auto &servos = robot.servos();
+            //servos[0].put(mapping.right_y().asServoPulse());
+            //servos[1].put(mapping.right_x().asServoPulse());
+            servos[0].put((-mapping.s1()).asServoPulse());
+            servos[1].put((-mapping.s2()).asServoPulse());
+            drive_wheels(mapping);
+        }
     });
-    picoADC.set_vsys_cb([](auto voltage){
-        // Push radio telemetry event
-        receiver.telemetry_push(Radio::FrSky::Telemetry::a3(0, voltage));
+
+
+    #if 0
+    robot.receiver()_listener.add_callback([](auto &channels, auto &mapping){
+        static absolute_time_t last = get_absolute_time();
+        if (absolute_time_diff_us(last, get_absolute_time())>200000) {
+            last = get_absolute_time();
+            #if 0
+            //printf("Data: fl=%d fs=%d rssi=%3d ch=%d  ", channels.flags().frameLost(), channels.flags().failsafe(), channels.rssi(), channels.count());
+            printf("Raw: ");
+            for (auto ch : channels) {
+                printf("%4d ", ch.raw());
+            }
+            printf("\n");
+            #endif
+            #if 1
+            //printf("%d %d ", channels.flags().frameLost(), channels.flags().failsafe());
+            mapping.print();
+            #endif
+            //printf("Servo: %4d %4d\n", mapping.s1().asServoPulse(), mapping.s2().asServoPulse());
+        }
     });
-    picoADC.set_temp_cb([](auto temp){
-        // Push radio telemetry event
-        receiver.telemetry_push(Radio::FrSky::Telemetry::temperature1(0, temp));
-    });
-    currentSensor.set_callback([](auto voltage, auto current, auto power){
-        // Push radio telemetry event
-        receiver.telemetry_push(Radio::FrSky::Telemetry::cells(0x00, 0, 2, voltage/2.0f, voltage/2.0f));
-        receiver.telemetry_push(Radio::FrSky::Telemetry::current(0, current));
-    });
+    #endif
+
 
 }
 
@@ -313,22 +240,18 @@ static void main_core1()
 {
     printf("Core 1 running\n");
 
-    #ifdef USE_RADIO
-    receiver.begin();
-    #endif
+    robot.receiver().begin();
 
     absolute_time_t wait;
 
     sem_acquire_blocking(&core1_sem);
     while (core1_running) {
-        #ifdef USE_RADIO
-        wait = receiver.update();
-        #else
-        wait = make_timeout_time_ms(10000);
-        #endif
-        
-        wait = earliest_time(wait, picoADC.update());
-        wait = earliest_time(wait, currentSensor.update());
+        wait = robot.receiver().update();
+        wait = earliest_time(wait, robot.watchdog().ping_core1());
+        wait = earliest_time(wait, robot.sys_sensor().update());
+        wait = earliest_time(wait, robot.battery_sensor().update());
+        wait = earliest_time(wait, robot.imu().update());
+        wait = earliest_time(wait, Motor::Encoder::update());
 
         sleep_until(wait);
     }
@@ -361,28 +284,28 @@ static void core1_stop()
 static void main_core0() 
 {
     printf("Core 0 running\n");
-    led_builtin.blink();
-    display_render.begin();
+    robot.led_builtin().blink();
+    robot.led_render().begin();
+    robot.display_render().begin();
 
     absolute_time_t wait;
 
     while (true) {
-        wait = led_builtin.update();
-        if (display.present()) {
-            wait = earliest_time(wait, display_render.update_battery(currentSensor));
-            wait = earliest_time(wait, display_render.update_radio(receiver));
-            if (display.update_needed()) {
-                display.update_block_until(wait);
-            }
-        }
+        wait = robot.led_builtin().update();
+        wait = earliest_time(wait, robot.watchdog().ping_core0());
+        wait = earliest_time(wait, robot.receiver_listener().update());
         wait = earliest_time(wait, main_update());
+        wait = earliest_time(wait, robot.led_render().update());
+        wait = earliest_time(wait, robot.display_render().update());
+
+        if (robot.display().update_needed()) {
+            robot.display().update_block_until(wait);
+        }
 
         //printf("Sleep: %lld\n", absolute_time_diff_us(get_absolute_time(), wait));
+
         sleep_until(wait);
 
-        #ifdef USE_WATCHDOG
-        watchdog_update();
-        #endif
     }
 }
 
@@ -406,20 +329,17 @@ int main()
     core1_init();
     core1_start();
 
-    #ifdef USE_WATCHDOG
-    printf("Enabling watchdog\n");
-    watchdog_enable(WATCHDOG_INTERVAL, true);
-    #endif
+    if constexpr (!debug_build) {
+        printf("Enabling watchdog\n");
+        robot.watchdog().begin();
+    }
 
     // Enter main loop
     main_core0();
 
     // Shutdown
     core1_stop();
-    display_render.off();
-    led_strip.fill(LED::Color::BLACK);
-    led_strip.show();
-    led_builtin.off();
+    robot.term();
 
     while (true);
 }

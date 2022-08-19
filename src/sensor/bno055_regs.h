@@ -1607,3 +1607,22 @@
 
 #define BNO055_CHIP_ID (0xA0)
 
+
+#define BNO055_DATA_REGS_START (0x08)
+#define BNO055_DATA_REGS_SIZE  (44)
+
+static inline uint16_t bno055_data_to_uint16(const uint8_t data[], uint8_t reg)
+{
+    return static_cast<uint16_t>(data[reg-BNO055_DATA_REGS_START]) | static_cast<uint16_t>(data[reg-BNO055_DATA_REGS_START+1])<<8;
+}
+
+static inline int16_t bno055_data_to_int16(const uint8_t data[], uint8_t reg)
+{
+    return (int16_t)bno055_data_to_uint16(data, reg);
+}
+
+
+static inline constexpr void bno055_set_masked(uint8_t &reg, const uint8_t val, const uint8_t mask, const uint8_t pos)
+{
+    reg = (reg & ~mask) | (val<<pos);
+}

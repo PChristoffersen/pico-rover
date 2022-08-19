@@ -191,12 +191,18 @@ static inline uint battery_level(float voltage)
     return level;
 }
 
-static inline bool battery_critical(float voltage)
+static constexpr inline float battery_critical()
 {
-    return voltage<= BATTERY_TYPE[BATTERY_CRITICAL_INDEX];
+    return BATTERY_TYPE[BATTERY_CRITICAL_INDEX];
 }
 
 static constexpr inline float battery_max()
 {
     return BATTERY_TYPE[0];
+}
+
+
+static constexpr inline float battery_min()
+{
+    return BATTERY_TYPE[count_of(BATTERY_TYPE)-1];
 }

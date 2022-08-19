@@ -12,15 +12,16 @@
 #include <pico/stdlib.h>
 #include <pico/mutex.h>
 #include <util/locking.h>
+#include <util/callback.h>
 
 namespace Sensor {
 
     class INA219 {
         public:
-            using callback_t = std::function<void(float voltage, float current, float power)>;
-            using addr_t = uint8_t;
+            using callback_type = Callback<float,float,float>; // voltage, current, power;
+            using addr_type = uint8_t;
 
-            enum class Address: addr_t {
+            enum class Address: addr_type {
                 INA0 = 0x40,
                 INA1 = 0x41,
                 INA2 = 0x42,
@@ -43,18 +44,17 @@ namespace Sensor {
             float get_current() const       { MUTEX_GUARD(m_mutex); return m_current; }
             float get_power() const         { MUTEX_GUARD(m_mutex); return m_power; }
 
-            void set_callback(callback_t cb) { m_callback = cb; }
+            void add_callback(callback_type::call_type cb) { m_callback.add(cb); }
 
         private:
-            static constexpr int64_t UPDATE_INTERVAL = 250000;
+            static constexpr int64_t UPDATE_INTERVAL = 250000; // 250ms
             static constexpr float SHUNT_RESISTOR = 0.1f; // 0.1 Ohm shunt resistor
 
-            mutable mutex_t m_mutex;
-
-            addr_t m_address;
+            const addr_type m_address;
             bool m_present;
 
             absolute_time_t m_last_update;
+            mutable mutex_t m_mutex;
 
             // Readings
             float m_shunt_v;
@@ -62,7 +62,7 @@ namespace Sensor {
             float m_current;
             float m_power;
 
-            callback_t m_callback;
+            callback_type m_callback;
 
             bool write_reg(uint8_t reg, uint16_t value);
             bool read_reg(uint8_t reg, uint16_t &value);

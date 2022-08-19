@@ -13,7 +13,7 @@ namespace OLED {
 
 
 Display::Display(Address addr, Type type) : 
-    m_address { static_cast<addr_t>(addr) },
+    m_address { static_cast<addr_type>(addr) },
     m_present { false }
 {
 

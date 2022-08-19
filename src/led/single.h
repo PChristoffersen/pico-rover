@@ -30,11 +30,11 @@ namespace LED {
             absolute_time_t update();
 
             bool get_blinking() const { return m_blinking; }
-            void set_interval(int64_t interval);
+            void set_interval(int64_t interval) { m_interval = interval; }
 
         private:
 
-            uint m_pin;
+            const uint m_pin;
             bool m_blinking;
             int64_t m_interval;
             absolute_time_t m_blink_last;

@@ -19,9 +19,6 @@ set(PICO_BOARD pico)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-#add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-unused-parameter)
-#add_compile_options(-Wall -Wextra -Werror -Wno-unused-parameter)
-add_compile_options(-Wall -Wextra -Wno-unused-parameter)
 
 include(image_generate.cmake)
 include(font_generate.cmake)
@@ -31,19 +28,25 @@ add_executable(${PROJECT_NAME}
     src/main.cpp
     src/boardconfig.cpp
     src/displayrender.cpp
+    src/ledrender.cpp
+    src/robot.cpp
+    src/telemetryprovider.cpp
     src/led/single.cpp
     src/led/strip.cpp
     src/motor/dcmotor.cpp
     src/motor/encoder.cpp
+    src/motor/servo.cpp
     src/oled/display.cpp
     src/oled/framebuffer.cpp
+    src/radio/frsky_mapping.cpp
     src/radio/frsky_receiver.cpp
-    src/servo/servo.cpp
-    src/sensors/bno055.cpp
-    src/sensors/pico_adc.cpp
-    src/sensors/ina219.cpp
+    src/radio/frsky_receiverlistener.cpp
+    src/sensor/bno055.cpp
+    src/sensor/pico_adc.cpp
+    src/sensor/ina219.cpp
     src/util/debug.cpp
     src/util/i2c_bus.cpp
+    src/watchdog/watchdog.cpp
 )
 
 
@@ -53,14 +56,16 @@ pico_set_program_version(${PROJECT_NAME} "0.1")
 
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unused-parameter)
     pico_enable_stdio_usb(${PROJECT_NAME} 0)
     pico_enable_stdio_semihosting(${PROJECT_NAME} 0)
     pico_enable_stdio_uart(${PROJECT_NAME} 0)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         BOARD_GPIO_STDIO=1
     )
-
 else()
+    #target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror -Wno-unused-parameter)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Werror -Wno-unused-parameter)
     pico_enable_stdio_usb(${PROJECT_NAME} 1)
 endif()
 
@@ -83,6 +88,21 @@ pico_generate_pio_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/util/uart_tx.
 
 image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/raspberry_logo.bmp Raspberry_Logo ${PROJECT_BINARY_DIR}/generated/resources)
 image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/battery.bmp Battery ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/warning.bmp Warning ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/no_con.bmp NoConnection ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/signal_1.bmp Signal1 ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/signal_2.bmp Signal2 ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/signal_3.bmp Signal3 ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/signal_4.bmp Signal4 ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/check.bmp Check ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/cancel.bmp Cancel ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/timer.bmp Timer ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/tool.bmp Tool ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/face.bmp Face ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/lock_closed.bmp LockClosed ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/lock_open.bmp LockOpen ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/power_button.bmp PowerButton ${PROJECT_BINARY_DIR}/generated/resources)
+image_generate_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/resources/bullet.bmp Bullet ${PROJECT_BINARY_DIR}/generated/resources)
 font_generate_header(${PROJECT_NAME} LiberationMono 16 LiberationMono_16 ${PROJECT_BINARY_DIR}/generated/resources)
 font_generate_header(${PROJECT_NAME} LiberationMono 24 LiberationMono_24 ${PROJECT_BINARY_DIR}/generated/resources)
 font_generate_header(${PROJECT_NAME} LiberationSans:Bold 16 LiberationSans_16 ${PROJECT_BINARY_DIR}/generated/resources)

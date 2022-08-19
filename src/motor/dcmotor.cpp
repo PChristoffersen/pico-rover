@@ -14,14 +14,20 @@
 namespace Motor {
 
 float DCMotor::m_supply_voltage = battery_max();
+critical_section_t DCMotor::m_global_lock;
+uint DCMotor::m_enable_count = 0u;
+bool DCMotor::m_global_enabled = false;
 
 
-DCMotor::DCMotor(uint in1_pin, uint in2_pin, PIO enc_pio, uint enca_pin, uint encb_pin) :
+
+DCMotor::DCMotor(id_type id, uint in1_pin, uint in2_pin, PIO enc_pio, uint enca_pin, uint encb_pin, bool invert) :
+    m_id { id },
     m_in1_pin { in1_pin },
     m_in2_pin { in2_pin },
+    m_invert  { invert },
     m_enabled { false },
     m_duty { 0.0f },
-    m_encoder { enc_pio, enca_pin, encb_pin }
+    m_encoder { id, enc_pio, enca_pin, encb_pin, invert }
 {
 }
 
@@ -32,11 +38,53 @@ void DCMotor::global_init()
     if (initialized)
         return;
 
+    critical_section_init(&m_global_lock);
+    m_enable_count = 0;
+
     gpio_init(MOTOR_ENABLE_PIN);
     gpio_set_dir(MOTOR_ENABLE_PIN, GPIO_OUT);
     gpio_put(MOTOR_ENABLE_PIN, 0);
 
     initialized = true;
+}
+
+
+void DCMotor::global_enable(bool enable)
+{
+    critical_section_enter_blocking(&m_global_lock);
+    if (enable) {
+        m_enable_count++;
+        if (m_global_enabled) {
+            gpio_put(MOTOR_ENABLE_PIN, true);
+        }
+    }
+    else {
+        assert(m_enable_count>0);
+        m_enable_count--;
+        if (m_enable_count==0) {
+            gpio_put(MOTOR_ENABLE_PIN, false);
+        }
+    }
+    critical_section_exit(&m_global_lock);
+}
+
+
+void DCMotor::set_global_enable(bool enable) 
+{
+    critical_section_enter_blocking(&m_global_lock);
+    if (enable!=m_global_enabled) {
+        m_global_enabled = enable;
+        if (m_enable_count>0) {
+            if (m_global_enabled) {
+                gpio_put(MOTOR_ENABLE_PIN, true);
+            }
+            else {
+                gpio_put(MOTOR_ENABLE_PIN, false);
+            }
+        }
+    }
+    critical_section_exit(&m_global_lock);
+
 }
 
 
@@ -76,21 +124,23 @@ void DCMotor::init()
 void DCMotor::update_duty()
 {
     // Calculate PWM level based on supply voltage and requested duty
-    int pwm = m_duty*PWM_WRAP*MOTOR_TARGET_VOLTAGE/m_supply_voltage;
+    critical_section_enter_blocking(&m_global_lock);
+    int pwm = m_duty*PWM_WRAP*VOLTAGE_TARGET/m_supply_voltage;
+    critical_section_exit(&m_global_lock);
 
     if constexpr (DRIVER_MODE==DriverMode::IN_IN) {
         // IN/IN Mode - in1 and in2 functions as described in https://www.pololu.com/product/4036
         // TODO Not implemented correctly
         if (m_duty>=0) {
             // Forward
-            printf("Set Duty: %f >  %5d  %5lu\n", m_duty, pwm, PWM_WRAP-pwm);
+            //printf("IN/IN Set Duty: %f >  %5d  %5lu\n", m_duty, pwm, PWM_WRAP-pwm);
             pwm_set_chan_level(m_slice, pwm_gpio_to_channel(m_in1_pin), 0);
             pwm_set_chan_level(m_slice, pwm_gpio_to_channel(m_in2_pin), pwm);
         }
         else {
             // Reverse
             //int pwm = MOTOR_PWM_MAX+pwm;
-            printf("Set Duty: %f >  %5d  %5lu\n", m_duty, pwm, PWM_WRAP-pwm);
+            //printf("Set Duty: %f >  %5d  %5lu\n", m_duty, pwm, PWM_WRAP-pwm);
             pwm_set_chan_level(m_slice, pwm_gpio_to_channel(m_in1_pin), PWM_WRAP-pwm);
             pwm_set_chan_level(m_slice, pwm_gpio_to_channel(m_in2_pin), 0);
         }
@@ -99,12 +149,12 @@ void DCMotor::update_duty()
         // PH/EN Mode - in2 constrols direction, in1 speed
 
         if (m_duty>=0) {
-            printf("Set Duty: %5d %f >\n", pwm, m_duty);
+            //printf("PH/EN Set Duty: %5d %f >\n", pwm, m_duty);
             pwm_set_chan_level(m_slice, pwm_gpio_to_channel(m_in1_pin), pwm);
             gpio_put(m_in2_pin, 1);
         }
         else {
-            printf("Set Duty: %5d %f<\n", pwm, m_duty);
+            //printf("Set Duty: %5d %f<\n", pwm, m_duty);
             pwm_set_chan_level(m_slice, pwm_gpio_to_channel(m_in1_pin), -pwm);
             gpio_put(m_in2_pin, 0);
         }
@@ -134,15 +184,18 @@ void DCMotor::set_enabled(bool enabled)
         gpio_put(m_in1_pin, 0);
         gpio_put(m_in2_pin, 0);
     } 
-
+    global_enable(m_enabled);
 }
 
 
-void DCMotor::put(float duty)
+void DCMotor::set_duty(duty_type duty)
 {
     MUTEX_GUARD(m_mutex);
 
     duty = std::clamp(duty, -1.0f, 1.0f);
+    if (m_invert) {
+        duty = -duty;
+    }
 
     if (m_duty==duty) 
         return;
@@ -157,7 +210,12 @@ void DCMotor::put(float duty)
 
 void DCMotor::set_supply_voltage(float voltage)
 {
-    m_supply_voltage = voltage;
+    constexpr auto vmin { battery_min() };
+    constexpr auto vmax { battery_max() };
+    critical_section_enter_blocking(&m_global_lock);
+    m_supply_voltage = std::clamp(voltage, vmin, vmax);
+    critical_section_exit(&m_global_lock);
 }
+
 
 }

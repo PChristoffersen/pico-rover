@@ -4,41 +4,44 @@
 #include <hardware/clocks.h>
 #include <hardware/pwm.h>
 
-#include "../boardconfig.h"
+#include <util/debug.h>
+#include <util/locking.h>
 
 
-/* PWM Parameters to setup the hardware to pulse every 20ms
- * 
- * We setup the hardware so the channel level directly corresponds to 
- * the servo pulse length in microseconds.
- */
-static constexpr uint16_t SERVO_PWM_WRAP = 20000u;
-static constexpr float SERVO_PWM_DIV = 1000000.0f;
+namespace Motor {
 
 
-Servo::Servo(uint pin) :
+
+Servo::Servo(id_type id, uint pin) :
+    m_id { id },
     m_pin { pin },
+    m_slice { 0 },
+    m_channel { 0 },
     m_enabled  { false },
     m_value { INITIAL_POSITION }
 {
+    mutex_init(&m_mutex);
 }
 
 
 void Servo::init()
 {
+    #ifndef DEBUG_USE_SERVO_PINS
     gpio_init(m_pin);
     gpio_set_dir(m_pin, GPIO_OUT);
     gpio_put(m_pin, 0);
+    
+    gpio_set_function(m_pin, GPIO_FUNC_PWM);
+    #endif
 
     m_slice = pwm_gpio_to_slice_num(m_pin);
     m_channel = pwm_gpio_to_channel(m_pin);
 
-    pwm_set_wrap(m_slice,  SERVO_PWM_WRAP);
-    pwm_set_clkdiv(m_slice, clock_get_hz(clk_sys)/SERVO_PWM_DIV);
+    pwm_set_wrap(m_slice,  PWM_WRAP);
+    pwm_set_clkdiv(m_slice, clock_get_hz(clk_sys)/PWM_DIV);
 
     pwm_set_chan_level(m_slice, m_channel, 0);
 
-    gpio_set_function(m_pin, GPIO_FUNC_PWM);
     pwm_set_enabled(m_slice, true);
 }
 
@@ -46,24 +49,29 @@ void Servo::init()
 
 void Servo::set_enabled(bool enabled)
 {
+    MUTEX_GUARD(m_mutex);
     if (m_enabled==enabled) return;
     m_enabled = enabled;
+    #ifndef DEBUG_USE_SERVO_PINS
     if (enabled) {
         pwm_set_chan_level(m_slice, m_channel, m_value);
     }
     else {
         pwm_set_chan_level(m_slice, m_channel, 0);
     }
-
+    #endif
 }
 
 
 void Servo::put(uint16_t us) 
 {
+    MUTEX_GUARD(m_mutex);
     if (m_value!=us) {
         m_value = us;
         if (m_enabled) {
             pwm_set_chan_level(m_slice, m_channel, m_value);
         }
     }
+}
+
 }

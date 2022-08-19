@@ -77,13 +77,12 @@ static inline bool _ina219_overflow(uint16_t value)
 
 
 INA219::INA219(Address addr) :
-    m_address { static_cast<addr_t>(addr) },
+    m_address { static_cast<addr_type>(addr) },
     m_present { false },
     m_shunt_v { 0.0f },
     m_bus_v { 0.0f },
     m_current { 0.0f },
-    m_power { 0.0f },
-    m_callback { nullptr }
+    m_power { 0.0f }
 {
     mutex_init(&m_mutex);
 }
@@ -179,9 +178,7 @@ absolute_time_t INA219::update()
         printf("\n");
         #endif
 
-        if (m_callback) {
-            m_callback(m_bus_v, m_current, m_power);
-        }
+        m_callback(m_bus_v, m_current, m_power);
 
       bail:
         i2c_bus_release();

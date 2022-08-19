@@ -12,73 +12,55 @@
 #include <functional>
 #include <stdio.h>
 #include <pico/stdlib.h>
-#include <pico/util/queue.h>
 #include <pico/mutex.h>
 
 
-#include "../util/ringbuffer.h"
+#include <util/ringbuffer.h>
+#include <util/locking.h>
+#include <util/callback.h>
+#include "frsky_channels.h"
 #include "frsky_telemetry.h"
 
 namespace Radio::FrSky {
 
     class Receiver {
         public:
-            using flags_type = uint8_t;
-            using rssi_type = uint8_t;
-
             static constexpr size_t MAX_CHANNELS { 24 };
 
-            class ChannelData {
-                public:
-                    using value_type = float;
-                    using raw_type = uint16_t;
-
-                    ChannelData();
-
-                    rssi_type  rssi() const { return m_rssi; }
-                    flags_type flags() const { return m_flags; }
-
-                    size_t count() const { return m_count; }
-                    const value_type &operator[](size_t n) const { assert(n<m_count); return m_values[n]; }
-                    const raw_type &raw(size_t n) const { assert(n<m_count); return m_raw[n]; }
-
-                protected:
-                    friend Receiver;
-
-                    void set_count(size_t count) { m_count = count; }
-                    void set_raw(size_t n, raw_type v) { m_raw[n] = v; }
-
-                private:
-                    using raw_array_type = std::array<raw_type, MAX_CHANNELS>;
-                    using value_array_type = std::array<value_type, MAX_CHANNELS>;
-
-                    rssi_type m_rssi;
-                    flags_type m_flags;
-                    size_t m_count;
-                    raw_array_type m_raw;
-                    value_array_type m_values;
-            };
-
-            using callback_type = std::function<void(const ChannelData &channels)>;
-
+            using control_cb_type = Callback<const Channels &>;
 
             Receiver(uart_inst_t *uart, uint baudrate, uint tx_pin, uint rx_pin);
+            Receiver(const Receiver&) = delete; // No copy constructor
+            Receiver(Receiver&&) = delete; // No move constructor
 
             void init();
             void begin();
 
             absolute_time_t update();
 
-            bool telemetry_push(const Telemetry &event);
+            void add_callback(control_cb_type::call_type callback) { m_control_callback.add(callback); }
+            void set_telemetry_provider(TelemetryProvider *provider) { m_telemetry_provider = provider; }
 
-            void set_callback(callback_type callback) { m_data_callback = callback; }
+            bool connected() const            { MUTEX_GUARD(m_mutex); return !m_channels.flags().frameLost(); }
+            Channels::flag_type flags() const { MUTEX_GUARD(m_mutex); return m_channels.flags(); }
+            Channels::rssi_type rssi() const  { MUTEX_GUARD(m_mutex); return m_channels.rssi(); } 
+            size_t channel_count() const      { MUTEX_GUARD(m_mutex); return m_channels.count(); } 
+
+            uint n_control_packets() const   { return m_control_packets; }
+            uint n_telemetry_sent() const    { return m_telemetry_sent; }
+            uint n_telemetry_skipped() const { return m_telemetry_skipped; }
+
+
+            #ifndef NDEBUG
+            void print_stats();
+            #endif
 
         private:
             static constexpr uint8_t RECEIVER_ID = 0x67;
             static constexpr size_t RX_BUFFER_SIZE = 128u;
             static constexpr size_t TX_BUFFER_SIZE = 32u;
             static constexpr size_t BUFFER_MAX_WAIT_CHARS = 32u;
-            static constexpr uint TELEMETRY_QUEUE_SIZE = 32u;
+            static constexpr int64_t SYNC_TIMEOUT = 100000; // 100ms
 
             using rx_buffer_type = RingBuffer<uint8_t, RX_BUFFER_SIZE>;
             using tx_buffer_type = RingBuffer<uint8_t, TX_BUFFER_SIZE>;
@@ -96,33 +78,35 @@ namespace Radio::FrSky {
             static Receiver *m_instance;
 
             // Config
+            const uint m_baudrate;
+            const uint m_tx_pin;
+            const uint m_rx_pin;
             uart_inst_t *m_uart;
-            uint m_baudrate;
-            uint m_tx_pin;
-            uint m_rx_pin;
 
 
             State m_state;
             absolute_time_t m_last_rx_time;
+            absolute_time_t m_sync_begin_time;
 
             // Current data
-            mutex_t m_mutex;
-            bool m_connected;
+            mutable mutex_t m_mutex;
 
-            ChannelData m_data;
-            callback_type m_data_callback;
+            Channels m_channels;
+            control_cb_type m_control_callback;
 
             // Buffers
             rx_buffer_type m_rx_buffer;
             tx_buffer_type m_tx_buffer;
 
             // Telemetry
-            queue_t m_telemetry_queue;
+            TelemetryProvider *m_telemetry_provider;
 
-            void telemetry_flush();
+            // Stats
+            uint m_control_packets;
+            uint m_telemetry_sent;
+            uint m_telemetry_skipped;
 
-            template <typename buffer_type> uint8_t checksum(const buffer_type &buffer, uint off, uint sz);
-            void set_8channel(const rx_buffer_type &buffer, uint buffer_offset, uint channel_offset);
+            void lost_sync();
 
             inline void isr_handler();
             inline void irq_set_tx_enable(bool enable);

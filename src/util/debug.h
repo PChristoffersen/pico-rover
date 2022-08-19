@@ -13,6 +13,20 @@
 
 void debug_init();
 
+static constexpr bool debug_build { 
+#ifndef NDEBUG
+    false
+#else
+    true
+#endif
+};
+
+
+#ifndef NDEBUG
+#define debugf(X...) { printf(X); }
+#else
+#define debugf(X...) { }
+#endif
 
 #ifndef NDEBUG
 void debug_i2c_scan_bus();
@@ -28,10 +42,19 @@ void debug_i2c_scan_bus();
 #else
 
 #include "../boardconfig.h"
+//#define DEBUG_USE_SERVO_PINS
+//#define DEBUG_USE_RADIO_PINS
+
+#ifdef DEBUG_USE_SERVO_PINS
 #define DEBUG_PIN0 SERVO1_PIN
 #define DEBUG_PIN1 SERVO2_PIN
-//#define DEBUG_PIN2 RADIO_RECEIVER_TX_PIN
-//#define DEBUG_PIN3 RADIO_RECEIVER_RX_PIN
+#endif
+
+#ifdef DEBUG_USE_RADIO_PINS
+#define DEBUG_PIN2 RADIO_RECEIVER_TX_PIN
+#define DEBUG_PIN3 RADIO_RECEIVER_RX_PIN
+#endif
+
 
 static inline void debug_pin_init()
 {

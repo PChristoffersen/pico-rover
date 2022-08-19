@@ -20,10 +20,7 @@ PicoADC::PicoADC(uint battery_pin, float battery_r1, float battery_r2) :
 
     m_battery_voltage { 0.0f },
     m_vsys_voltage { 0.0f },
-    m_temp { 0.0f },
-    m_battery_cb { nullptr },
-    m_vsys_cb { nullptr },
-    m_temp_cb { nullptr }
+    m_temp { 0.0f }
 {
     mutex_init(&m_mutex);
 }
@@ -41,7 +38,7 @@ void PicoADC::init()
     adc_select_input(_adc_from_pin(m_battery_pin));
     adc_set_round_robin((1<<_adc_from_pin(m_battery_pin))|(1<<_adc_from_pin(VSYS_PIN))|(1<<TEMP_ADC));
 
-    m_last_update = get_absolute_time();
+    m_last_update = make_timeout_time_us(UPDATE_INTERVAL/2);
 }
 
 
@@ -84,9 +81,7 @@ void PicoADC::_handle_battery(float adc_voltage)
     m_battery_voltage = voltage;
     mutex_exit(&m_mutex);
 
-    if (m_battery_cb) {
-        m_battery_cb(voltage);
-    }
+    m_battery_cb(voltage);
 }
 
 
@@ -100,9 +95,7 @@ void PicoADC::_handle_vsys(float adc_voltage)
     m_vsys_voltage = voltage;
     mutex_exit(&m_mutex);
 
-    if (m_vsys_cb) {
-        m_vsys_cb(voltage);
-    }
+    m_vsys_cb(voltage);
 }
 
 void PicoADC::_handle_temp(float adc_voltage)
@@ -115,9 +108,7 @@ void PicoADC::_handle_temp(float adc_voltage)
     m_temp = tempC;
     mutex_exit(&m_mutex);
 
-    if (m_temp_cb) {
-        m_temp_cb(tempC);
-    }
+    m_temp_cb(tempC);
 }
 
 

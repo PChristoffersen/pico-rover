@@ -12,12 +12,13 @@
 #include <pico/stdlib.h>
 #include <pico/mutex.h>
 #include <util/locking.h>
+#include <util/callback.h>
 
 namespace Sensor {
 
     class PicoADC {
         public:
-            using callback_t = std::function<void(float value)>;
+            using callback_type = Callback<float>;
 
             PicoADC(uint battery_pin, float battery_r1, float battery_r2);
             PicoADC(const PicoADC&) = delete; // No copy constructor
@@ -30,12 +31,12 @@ namespace Sensor {
             float get_vsys() const    { MUTEX_GUARD(m_mutex); return m_vsys_voltage; }
             float get_temp() const    { MUTEX_GUARD(m_mutex); return m_temp; }
 
-            void set_battery_cb(callback_t cb) { m_battery_cb = cb; }
-            void set_vsys_cb(callback_t cb) { m_vsys_cb = cb; }
-            void set_temp_cb(callback_t cb) { m_temp_cb = cb; }
+            void add_battery_cb(callback_type::call_type cb) { m_battery_cb.add(cb); }
+            void add_vsys_cb(callback_type::call_type cb) { m_vsys_cb.add(cb); }
+            void add_temp_cb(callback_type::call_type cb) { m_temp_cb.add(cb); }
 
         private:
-            static constexpr int64_t UPDATE_INTERVAL = 250000u;
+            static constexpr int64_t UPDATE_INTERVAL = 250000u; // 250ms
             static constexpr float   ADC_REF         = 3.3f;
             static constexpr uint    ADC_RESOLUTION  = (1u<<12);
             static constexpr uint    VSYS_PIN        = 29;
@@ -44,9 +45,9 @@ namespace Sensor {
             static constexpr uint    TEMP_ADC        = 4;
             static constexpr float   BATTERY_MIN     = 3.0f;
 
-            uint m_battery_pin;
-            float m_battery_r1;
-            float m_battery_r2;
+            const uint m_battery_pin;
+            const float m_battery_r1;
+            const float m_battery_r2;
 
             mutable mutex_t m_mutex;
 
@@ -56,9 +57,9 @@ namespace Sensor {
             float m_vsys_voltage;
             float m_temp;
         
-            callback_t m_battery_cb;
-            callback_t m_vsys_cb;
-            callback_t m_temp_cb;
+            callback_type m_battery_cb;
+            callback_type m_vsys_cb;
+            callback_type m_temp_cb;
 
             void _handle_battery(float adc_voltage);
             void _handle_vsys(float adc_voltage);

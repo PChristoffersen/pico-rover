@@ -9,19 +9,10 @@
  * 
  * Implementation of the FrSky FBus2 protocol. 
  * 
- * The only documentation of the protocol I have been able to find is:
- * 
- * https://github.com/betaflight/betaflight/wiki/The-FrSky-FPort-Protocol
- * 
- * The PDF on that page does not represent precicely what is sent, but by
- * reverse engineering dumped data from a receiver I have been able to 
- * implement a working protocol.
- * 
  */
 #include "frsky_receiver.h"
 
 #include <pico/stdlib.h>
-#include <pico/util/queue.h>
 #include <hardware/uart.h>
 
 #include <util/debug.h>
@@ -34,36 +25,15 @@ namespace Radio::FrSky {
 Receiver *Receiver::m_instance = nullptr;
 
 
-Receiver::ChannelData::ChannelData():
-    m_rssi { 0x00 },
-    m_flags { 0x00 },
-    m_count { 0 } 
-{
-}
-
-
-template <typename buffer_type>
-uint8_t Receiver::checksum(const buffer_type &buffer, uint off, uint sz)
-{
-    uint16_t sum = 0x00;
-    for (uint i=0; i<sz; i++) {
-        sum += buffer[off+i];
-    }
-    while (sum > 0xFF) {
-        sum = (sum & 0xFF) + (sum >>8);
-    }
-    return 0xFF - sum;
-}
 
 
 Receiver::Receiver(uart_inst_t *uart, uint baudrate, uint tx_pin, uint rx_pin) :
-    m_uart { uart },
     m_baudrate { baudrate },
     m_tx_pin { tx_pin },
     m_rx_pin { rx_pin },
+    m_uart { uart },
     m_state { State::SYNCING },
-    m_connected { false },
-    m_data_callback { nullptr }
+    m_control_packets { 0 }
 {
     assert(m_instance==nullptr);
     mutex_init(&m_mutex);
@@ -74,7 +44,6 @@ Receiver::Receiver(uart_inst_t *uart, uint baudrate, uint tx_pin, uint rx_pin) :
 void Receiver::init()
 {
     assert(m_instance==this);
-    queue_init(&m_telemetry_queue, sizeof(Telemetry), TELEMETRY_QUEUE_SIZE);
 }
 
 
@@ -104,14 +73,11 @@ inline void Receiver::isr_handler()
     uint8_t ch;
 
     auto status = uart_get_hw(m_uart)->mis;
-    uint tx_cnt = 0;
-    uint rx_cnt = 0;
 
     m_rx_buffer.enter_blocking();
     while (uart_is_readable(m_uart)) {
         uart_read_blocking(m_uart, &ch, sizeof(ch));
         m_rx_buffer.push(ch);
-        rx_cnt++;
     }
     m_last_rx_time = get_absolute_time();
     m_rx_buffer.exit();
@@ -121,7 +87,6 @@ inline void Receiver::isr_handler()
         while (uart_is_writable(m_uart) && !m_tx_buffer.empty()) {
             ch = m_tx_buffer.pop();
             uart_write_blocking(m_uart, &ch, sizeof(ch));
-            tx_cnt++;
         }
         if (m_tx_buffer.empty()) {
             irq_set_tx_enable(false);
@@ -137,17 +102,17 @@ void Receiver::begin()
     assert(m_instance==this);
     m_rx_buffer.clear();
     m_tx_buffer.clear();
-    m_connected = false;
 
+    #ifndef DEBUG_USE_RADIO_PINS
     gpio_set_function(m_tx_pin, GPIO_FUNC_UART);
     gpio_set_function(m_rx_pin, GPIO_FUNC_UART);
+    #endif
 
     uart_init(m_uart, m_baudrate);
     #if PICO_UART_ENABLE_CRLF_SUPPORT
     uart_set_translate_crlf(m_uart, false);
     #endif
 
-    #if 1
     uint UART_IRQ = m_uart == uart0 ? UART0_IRQ : UART1_IRQ;
     irq_set_exclusive_handler(UART_IRQ, +[]() { m_instance->isr_handler(); });
     irq_set_enabled(UART_IRQ, true);
@@ -157,9 +122,25 @@ void Receiver::begin()
     hw_write_masked(&uart_get_hw(m_uart)->ifls, 0b010 << UART_UARTIFLS_RXIFLSEL_LSB, UART_UARTIFLS_RXIFLSEL_BITS);
     // Set maximum tx threshold to 1/2
     hw_write_masked(&uart_get_hw(m_uart)->ifls, 0b000 << UART_UARTIFLS_TXIFLSEL_LSB, UART_UARTIFLS_TXIFLSEL_BITS);
-    #endif
 
     begin_sync();
+}
+
+
+
+void Receiver::lost_sync()
+{
+    debugf("Lost sync for too long\n");
+
+    mutex_enter_blocking(&m_mutex);
+
+    m_channels.set_flags(Flags::INITIAL_VALUE);
+    m_channels.set_rssi(0);
+    m_channels.set_sync(false);
+
+    mutex_exit(&m_mutex);
+
+    m_control_callback(m_channels);
 }
 
 
@@ -175,16 +156,17 @@ uint64_t Receiver::buffer_wait_time_us(int bytes)
     if (bytes<0) {
         return 0;
     }
-    uint64_t bits = std::max<int>(bytes, BUFFER_MAX_WAIT_CHARS) * 10ull; // Calculate bits to wait for including start and stop bit
-    uint64_t wait_us = bits * 1000000ull / m_baudrate;
+    uint bits = std::min<uint>(bytes, BUFFER_MAX_WAIT_CHARS) * 10u; // Calculate bits to wait for including start and stop bit
+    uint64_t wait_us = 1000000ull * bits / m_baudrate;
     return wait_us;
 }
 
 
 void Receiver::begin_sync()
 {
-    printf("Begin SYNC!!   %u\n", m_rx_buffer.size_blocking());
+    debugf("Begin SYNC!!   %u\n", m_rx_buffer.size_blocking());
     m_state = State::SYNCING;
+    m_sync_begin_time = get_absolute_time();
 }
 
 
@@ -226,30 +208,15 @@ void Receiver::begin_read_uplink()
 
 
 
-bool Receiver::telemetry_push(const Telemetry &event)
-{
-    #if DEBUG_USE_RECEIVER_UART
-    return false;
-    #else
-    return queue_try_add(&m_telemetry_queue, &event);
-    #endif
-}
-
-
-void Receiver::telemetry_flush()
-{
-    Telemetry event;
-    while (queue_try_remove(&m_telemetry_queue, &event));
-}
-
-
-
-
-
 absolute_time_t Receiver::do_sync()
 {
     size_t bufsz;
     
+    if (!m_channels.flags().frameLost() && absolute_time_diff_us(m_sync_begin_time, get_absolute_time())>SYNC_TIMEOUT) {
+        // We lost sync too long, set frame lost
+        lost_sync();
+    }
+
   again:
     bufsz = m_rx_buffer.size_blocking();
 
@@ -277,7 +244,7 @@ absolute_time_t Receiver::do_sync()
     }
 
     // Check CRC
-    if (checksum(m_rx_buffer, FBUS_CONTROL_HDR_SIZE, m_rx_buffer[0])!=fbus_control_crc(m_rx_buffer)) {
+    if (fbus_checksum(m_rx_buffer, FBUS_CONTROL_HDR_SIZE, m_rx_buffer[0])!=fbus_control_crc(m_rx_buffer)) {
         m_rx_buffer.pop_blocking(2);
         return get_absolute_time();
     }
@@ -289,19 +256,6 @@ absolute_time_t Receiver::do_sync()
     return get_absolute_time();
 }
 
-
-
-void Receiver::set_8channel(const rx_buffer_type &buffer, uint buffer_offset, uint channel_offset)
-{
-    m_data.set_raw(channel_offset,   (static_cast<ChannelData::raw_type>(buffer[0]))           + ((0x07 & buffer[1])<<8));
-    m_data.set_raw(channel_offset+1, (static_cast<ChannelData::raw_type>(0xF8 & buffer[1])>>3) + ((0x3F & buffer[2])<<5));
-    m_data.set_raw(channel_offset+2, (static_cast<ChannelData::raw_type>(0xC0 & buffer[2])>>6) + (buffer[3]<<2) + ((0x01 & buffer[4])<<10));
-    m_data.set_raw(channel_offset+3, (static_cast<ChannelData::raw_type>(0xFE & buffer[4])>>1) + ((0x0F & buffer[5])<<7));
-    m_data.set_raw(channel_offset+4, (static_cast<ChannelData::raw_type>(0xF0 & buffer[5])>>4) + ((0x7F & buffer[6])<<4));
-    m_data.set_raw(channel_offset+5, (static_cast<ChannelData::raw_type>(0x80 & buffer[6])>>7) + (buffer[7]<<1) + ((0x03 & buffer[8])<<9));
-    m_data.set_raw(channel_offset+6, (static_cast<ChannelData::raw_type>(0xFC & buffer[8])>>2) + ((0x1F & buffer[9])<<6));
-    m_data.set_raw(channel_offset+7, (static_cast<ChannelData::raw_type>(0xF0 & buffer[9])>>5) + ((buffer[10])<<3));
-}
 
 
 absolute_time_t Receiver::do_read_control()
@@ -329,7 +283,7 @@ absolute_time_t Receiver::do_read_control()
     }
 
     // Validate CRC
-    if (checksum(m_rx_buffer, FBUS_CONTROL_HDR_SIZE, m_rx_buffer[0])!=fbus_control_crc(m_rx_buffer)) {
+    if (fbus_checksum(m_rx_buffer, FBUS_CONTROL_HDR_SIZE, m_rx_buffer[0])!=fbus_control_crc(m_rx_buffer)) {
         begin_sync();
         return get_absolute_time();
     }
@@ -337,26 +291,73 @@ absolute_time_t Receiver::do_read_control()
     // Process package
     mutex_enter_blocking(&m_mutex);
 
-    m_connected = true; // TODO check flags
+    static_assert(FBUS_CONTROL_8CH_SIZE+FBUS_CONTROL_HDR_SIZE+sizeof(fbus_control_8_t::crc)==sizeof(fbus_control_8_t), "Expected control size to match struct");
+    static_assert(FBUS_CONTROL_16CH_SIZE+FBUS_CONTROL_HDR_SIZE+sizeof(fbus_control_16_t::crc)==sizeof(fbus_control_16_t), "Expected control size to match struct");
+    static_assert(FBUS_CONTROL_24CH_SIZE+FBUS_CONTROL_HDR_SIZE+sizeof(fbus_control_24_t::crc)==sizeof(fbus_control_24_t), "Expected control size to match struct");
 
-    uint8_t n_channels = 8;
-    set_8channel(m_rx_buffer, FBUS_CONTROL_HDR_SIZE, 0);
-    if (m_rx_buffer[0]>=FBUS_CONTROL_16CH_SIZE) {
-        set_8channel(m_rx_buffer, FBUS_CONTROL_HDR_SIZE+11, 8);
-        n_channels=16;
+
+    m_channels.set_sync(true);
+    m_channels.set_seq(m_control_packets);
+
+    switch (m_rx_buffer[0]) {
+        case FBUS_CONTROL_8CH_SIZE:
+            {
+                fbus_control_8_t control;
+                m_rx_buffer.enter_blocking();
+                m_rx_buffer.copy(reinterpret_cast<uint8_t*>(&control), sizeof(control), 0);
+                m_rx_buffer.pop(sizeof(control));
+                m_rx_buffer.exit();
+
+                m_channels.set_flags(control.flags);
+                m_channels.set_rssi(control.rssi);
+                m_channels.set_count(8);
+                fbus_get_8channel<ChannelValue::raw_type>(control.channels, 0u, m_channels, 0u);
+            }
+            break;
+        case FBUS_CONTROL_16CH_SIZE:
+            {
+                fbus_control_16_t control;
+                m_rx_buffer.enter_blocking();
+                m_rx_buffer.copy(reinterpret_cast<uint8_t*>(&control), sizeof(control), 0);
+                m_rx_buffer.pop(sizeof(control));
+                m_rx_buffer.exit();
+
+                m_channels.set_flags(control.flags);
+                m_channels.set_rssi(control.rssi);
+                m_channels.set_count(16);
+                fbus_get_8channel<ChannelValue::raw_type>(control.channels, 0u, m_channels, 0u);
+                fbus_get_8channel<ChannelValue::raw_type>(control.channels, FBUS_CONTROL_8_VALUE_SIZE, m_channels, 8u);
+            }
+            break;
+        case FBUS_CONTROL_24CH_SIZE:
+            {
+                fbus_control_16_t control;
+                m_rx_buffer.enter_blocking();
+                m_rx_buffer.copy(reinterpret_cast<uint8_t*>(&control), sizeof(control), 0);
+                m_rx_buffer.pop(sizeof(control));
+                m_rx_buffer.exit();
+
+                m_channels.set_flags(control.flags);
+                m_channels.set_rssi(control.rssi);
+                m_channels.set_count(24);
+                fbus_get_8channel<ChannelValue::raw_type>(control.channels, 0u, m_channels, 0u);
+                fbus_get_8channel<ChannelValue::raw_type>(control.channels, FBUS_CONTROL_8_VALUE_SIZE, m_channels, 8u);
+                fbus_get_8channel<ChannelValue::raw_type>(control.channels, FBUS_CONTROL_8_VALUE_SIZE*2, m_channels, 16u);
+            }
+            break;
+        default:
+            // We should never get here, but drop package, and begin resync just in case
+            mutex_exit(&m_mutex);
+            m_rx_buffer.pop_blocking(fbus_control_size(m_rx_buffer));
+            begin_sync();
+            return get_absolute_time();
     }
-    if (m_rx_buffer[0]>=FBUS_CONTROL_24CH_SIZE) {
-        set_8channel(m_rx_buffer, FBUS_CONTROL_HDR_SIZE+22, 16);
-        n_channels=24;
-    }
-    m_data.set_count(n_channels);
+
     mutex_exit(&m_mutex);
 
-    m_rx_buffer.pop_blocking(fbus_control_size(m_rx_buffer));
+    m_control_callback(m_channels);
 
-    if (m_data_callback) {
-        m_data_callback(m_data);
-    }
+    m_control_packets++;
 
     begin_read_downlink();
     return get_absolute_time();
@@ -381,7 +382,7 @@ absolute_time_t Receiver::do_read_downlink()
     }
 
     // Validate CRC
-    if (checksum(m_rx_buffer, FBUS_DOWNLINK_HDR_SIZE, m_rx_buffer[0])!=fbus_downlink_crc(m_rx_buffer)) {
+    if (fbus_checksum(m_rx_buffer, FBUS_DOWNLINK_HDR_SIZE, m_rx_buffer[0])!=fbus_downlink_crc(m_rx_buffer)) {
         begin_sync();
         return get_absolute_time();
     }
@@ -390,12 +391,12 @@ absolute_time_t Receiver::do_read_downlink()
     fbus_downlink_t downlink;
 
     m_rx_buffer.enter_blocking();
-    m_rx_buffer.copy((uint8_t*)&downlink, sizeof(downlink), 0);
+    m_rx_buffer.copy(reinterpret_cast<uint8_t*>(&downlink), sizeof(downlink), 0);
     m_rx_buffer.pop(FBUS_DOWNLINK_SIZE);
     m_rx_buffer.exit();
 
     // Check if we need to respond to downlink
-    if (downlink.id == RECEIVER_ID) {
+    if (downlink.id == RECEIVER_ID && m_telemetry_provider) {
         begin_wait_write_uplink();
         return get_absolute_time();
     }
@@ -420,15 +421,12 @@ absolute_time_t Receiver::do_wait_write_uplink()
     }
     if (diff > FBUS_UPLINK_SEND_DELAY_MAX_US) {
         // We missed the send window
+        m_telemetry_skipped++;
         begin_read_uplink();
         return now;
     }
 
-    Telemetry event;
-    if (!queue_try_remove(&m_telemetry_queue, &event)) {
-        // No data - wait a little longer (until we miss the upload window)
-        return delayed_by_us(last_rx, 100);
-    }
+    Telemetry event = m_telemetry_provider->get_next_telemetry();
 
     // Start sending uplink    
     fbus_uplink_t uplink;
@@ -439,7 +437,7 @@ absolute_time_t Receiver::do_wait_write_uplink()
     uplink.prim = FBUS_UPLINK_DATA_FRAME;
     uplink.app_id = event.app_id;
     uplink.data = event.data;
-    uplink.crc = checksum(uplink_ptr, FBUS_UPLINK_HDR_SIZE, uplink.size);
+    uplink.crc = fbus_checksum(uplink_ptr, FBUS_UPLINK_HDR_SIZE, uplink.size);
 
     //printf("Uplink: - %02x   %08x   - %lld\n", uplink.app_id, uplink.data, diff);
 
@@ -448,9 +446,11 @@ absolute_time_t Receiver::do_wait_write_uplink()
     m_tx_buffer.exit();
     start_tx();
 
+    m_telemetry_sent++;
 
     begin_write_uplink();
-    return now;
+
+    return make_timeout_time_us(buffer_wait_time_us(sizeof(fbus_uplink_t)));
 }
 
 
@@ -458,13 +458,12 @@ absolute_time_t Receiver::do_write_uplink()
 {
     if (!m_tx_buffer.empty()) {
         // We still have bytes to send, delay by the time it takes to send 10 bytes
-        return make_timeout_time_us(buffer_wait_time_us(10));
+        return make_timeout_time_us(buffer_wait_time_us(4));
     }
-    /*
     if (uart_get_hw(m_uart)->fr & UART_UARTFR_BUSY_BITS) {
         // UART is still transmitting
-        return make_timeout_time_us(buffer_wait_time_us(10));
-    }*/
+        return make_timeout_time_us(buffer_wait_time_us(4));
+    }
 
     begin_read_uplink();
     return get_absolute_time();
@@ -474,6 +473,14 @@ absolute_time_t Receiver::do_write_uplink()
 absolute_time_t Receiver::do_read_uplink()
 {
     size_t bufsz = m_rx_buffer.size_blocking();
+
+    auto wait_time = absolute_time_diff_us(m_last_rx_time, get_absolute_time());
+
+    if (bufsz==0 && wait_time > FBUS_UPLINK_SEND_TIMEOUT_US) {
+        // No uplink is comming
+        begin_read_control();
+        return make_timeout_time_us(FBUS_UPLINK_POST_DELAY_US-wait_time);
+    }
 
     if (bufsz<FBUS_UPLINK_HDR) {
         return make_timeout_time_us(buffer_wait_time_us(FBUS_UPLINK_SIZE-bufsz));
@@ -490,7 +497,7 @@ absolute_time_t Receiver::do_read_uplink()
     }
 
     // Validate CRC
-    if (checksum(m_rx_buffer, FBUS_UPLINK_HDR_SIZE, m_rx_buffer[0])!=fbus_uplink_crc(m_rx_buffer)) {
+    if (fbus_checksum(m_rx_buffer, FBUS_UPLINK_HDR_SIZE, m_rx_buffer[0])!=fbus_uplink_crc(m_rx_buffer)) {
         begin_sync();
         return get_absolute_time();
     }
@@ -498,7 +505,7 @@ absolute_time_t Receiver::do_read_uplink()
     m_rx_buffer.pop_blocking(FBUS_UPLINK_SIZE);
 
     begin_read_control();
-    return get_absolute_time();
+    return make_timeout_time_us(FBUS_UPLINK_POST_DELAY_US);
 }
 
 
@@ -506,11 +513,6 @@ absolute_time_t Receiver::do_read_uplink()
 absolute_time_t Receiver::update() 
 {
     absolute_time_t next;
-    //buffers_update();
-
-    if (!m_connected) {
-        telemetry_flush();
-    }
 
     switch (m_state) {
         case State::SYNCING:
@@ -538,4 +540,16 @@ absolute_time_t Receiver::update()
     return next;
 }
 
+
+#ifndef NDEBUG
+void Receiver::print_stats()
+{
+    printf("Receiver: control: %d   telemetry: sent=%d  skipped=%d\n", m_control_packets, m_telemetry_sent, m_telemetry_skipped);
 }
+#endif
+
+
+
+}
+
+

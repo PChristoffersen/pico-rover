@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include <string.h>
 #include <stdio.h>
 #include <pico/stdlib.h>
 
@@ -65,7 +66,7 @@ namespace Radio::FrSky {
         {
             return {
                 .app_id = static_cast<app_id_type>(FRDID_A3_FIRST_ID+offset),
-                .data   = static_cast<data_type>(voltage*100),
+                .data   = static_cast<data_type>((voltage*100.0f)+0.5f),
             };
         }
 
@@ -73,7 +74,7 @@ namespace Radio::FrSky {
         {
             return {
                 .app_id = static_cast<app_id_type>(FRDID_A4_FIRST_ID+offset),
-                .data   = static_cast<data_type>(voltage*100),
+                .data   = static_cast<data_type>((voltage*100.0f)+0.5f),
             };
         }
 
@@ -82,9 +83,33 @@ namespace Radio::FrSky {
         {
             return {
                 .app_id = static_cast<app_id_type>(FRDID_CURR_FIRST_ID+offset),
-                .data   = static_cast<data_type>(current_ma/100.0f),
+                .data   = static_cast<data_type>((current_ma*10.0f)+0.5f),
             };
         }
+
+        static Telemetry rpm(uint8_t offset, float rpm)
+        {
+            int32_t val = rpm*10;
+            return {
+                .app_id = static_cast<app_id_type>(FRDID_RPM_FIRST_ID+offset),
+                .data   = (data_type)val,
+            };
+        }
+
+        static Telemetry sbec(uint8_t offset, float voltage, float current) 
+        {
+            return {
+                .app_id = static_cast<app_id_type>(FRDID_SBEC_POWER_FIRST_ID+offset),
+                .data   = static_cast<data_type>(static_cast<uint16_t>(current)<<16 | static_cast<uint16_t>((voltage*1000.0f)+0.5f)),
+            };
+        }
+    };
+
+
+    class TelemetryProvider {
+        protected:
+            friend class Receiver;
+            virtual Telemetry get_next_telemetry() = 0;
     };
 
 }

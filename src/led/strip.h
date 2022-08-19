@@ -23,6 +23,12 @@ namespace LED {
         public: 
             void show();
 
+            virtual void fill(Color color) = 0;
+            virtual size_t length() const = 0;
+
+            virtual Color &operator[](size_t n) = 0;
+            virtual const Color &operator[](size_t n) const = 0;
+
         protected:
             using pixel_type = uint32_t;
 
@@ -30,8 +36,8 @@ namespace LED {
             static constexpr uint64_t STRIP_RESET_DELAY_US = 400u;
 
 
-            uint m_pin;
-            bool m_is_rgbw;
+            const uint m_pin;
+            const bool m_is_rgbw;
 
             Color::Correction m_correction;
             float m_brightness;
@@ -77,13 +83,11 @@ namespace LED {
                 show();
             }
 
-            void fill(Color color)
-            {
-                m_color_buffer.fill(color);
-            }
+            virtual void fill(Color color) override { m_color_buffer.fill(color); }
+            virtual size_t length() const override { return NCOLORS; }
 
-            Color &operator[](size_t n) noexcept { return m_color_buffer[n]; }
-            constexpr const Color &operator[](size_t n) const noexcept { return m_color_buffer[n]; }
+            virtual Color &operator[](size_t n) override { return m_color_buffer[n]; }
+            virtual const Color &operator[](size_t n) const override { return m_color_buffer[n]; }
 
 
         private:

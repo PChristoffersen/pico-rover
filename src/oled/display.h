@@ -17,9 +17,9 @@ namespace OLED {
 
     class Display {
         public:
-            using addr_t = uint8_t;
+            using addr_type = uint8_t;
 
-            enum class Address: addr_t {
+            enum class Address: addr_type {
                 DISPLAY0 = 0x3C,
                 DISPLAY1 = 0x3D,
             };
@@ -41,7 +41,7 @@ namespace OLED {
             Framebuffer &framebuffer() { return m_framebuffer; }
 
         private:
-            addr_t m_address;
+            const addr_type m_address;
             bool m_present;
 
             Framebuffer m_framebuffer;
