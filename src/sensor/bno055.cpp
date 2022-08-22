@@ -80,11 +80,11 @@ void BNO055::update_calib()
     uint8_t reg;
     read_reg8(BNO055_CALIB_STAT_ADDR, reg);
 
+    mutex_enter_blocking(&m_mutex);
     m_mag_calib = (reg & BNO055_MAG_CALIB_STAT_MSK) >> BNO055_MAG_CALIB_STAT_POS;
     m_accel_calib = (reg & BNO055_ACCEL_CALIB_STAT_MSK) >> BNO055_ACCEL_CALIB_STAT_POS;
     m_gyro_calib = (reg & BNO055_GYRO_CALIB_STAT_MSK) >> BNO055_GYRO_CALIB_STAT_POS;
-
-    printf("BNO055 Calib: mag=%d  accel=%d  gyro=%d\n", m_mag_calib, m_accel_calib, m_gyro_calib);
+    mutex_exit(&m_mutex);
 }
 
 
@@ -184,27 +184,35 @@ absolute_time_t BNO055::update()
 {
     auto now = get_absolute_time();
     if (absolute_time_diff_us(m_last_update, now)>INTERVAL) {
-        uint8_t data[BNO055_DATA_REGS_SIZE];
+        uint8_t data[3*sizeof(uint16_t)];
 
-        i2c_bus_acquire_blocking();
+        if (!i2c_bus_try_acquire()) {
+            return delayed_by_us(now, 100);
+        }
+
         if (absolute_time_diff_us(m_last_cali_update, now)>CALI_INTERVAL) {
             update_calib();
             m_last_cali_update = now;
         }
-        read(BNO055_DATA_REGS_START, data, sizeof(data));
+        read(BNO055_EULER_H_LSB_ADDR, data, sizeof(data));
         i2c_bus_release();
 
         mutex_enter_blocking(&m_mutex);
-        m_heading = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_H_LSB_VALUEH_REG))/BNO055_EULER_DIV_RAD;
-        m_pitch   = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_P_LSB_VALUEP_REG))/BNO055_EULER_DIV_RAD;
-        m_roll    = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_R_LSB_VALUER_REG))/BNO055_EULER_DIV_RAD;
+        m_heading = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_H_LSB_ADDR, BNO055_EULER_H_LSB_VALUEH_REG))/BNO055_EULER_DIV_RAD;
+        m_pitch   = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_H_LSB_ADDR, BNO055_EULER_P_LSB_VALUEP_REG))/BNO055_EULER_DIV_RAD;
+        m_roll    = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_H_LSB_ADDR, BNO055_EULER_R_LSB_VALUER_REG))/BNO055_EULER_DIV_RAD;
         mutex_exit(&m_mutex);
-
-        printf("BNO055:   heading=%5.2f (%5.1f)   pitch=%5.2f (%5.1f)    roll=%5.2f (%5.1f)\n", m_heading, m_heading*180.0/M_PI, m_pitch, m_pitch*180.0/M_PI, m_roll, m_roll*180.0/M_PI);
 
         m_last_update = delayed_by_us(m_last_update, INTERVAL);
     }
     return delayed_by_us(m_last_update, INTERVAL);
+}
+
+
+void BNO055::print() const 
+{
+    MUTEX_GUARD(m_mutex);
+    printf("BNO055:   calib=%u,%u,%u  heading=%5.2f (%5.1f)   pitch=%5.2f (%5.1f)    roll=%5.2f (%5.1f)\n", m_mag_calib, m_accel_calib, m_gyro_calib, m_heading, m_heading*180.0/M_PI, m_pitch, m_pitch*180.0/M_PI, m_roll, m_roll*180.0/M_PI);
 }
 
 }

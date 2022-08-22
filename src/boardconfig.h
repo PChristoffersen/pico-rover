@@ -26,7 +26,7 @@ static constexpr uint RADIO_RECEIVER_BAUD_RATE { 460800 };
 #define LED_STRIP_PIO                       pio0
 static constexpr uint LED_STRIP_PIN         { 19 };
 static constexpr bool LED_STRIP_IS_RGBW     { false };
-static constexpr uint LED_STRIP_PIXEL_COUNT { 16 };
+static constexpr uint LED_STRIP_PIXEL_COUNT { 8 };
 
 /* Battery */
 #define BATTERY_TYPE LIPO_2CELL
@@ -57,7 +57,7 @@ static constexpr uint MOTOR4_ENCA_PIN  {  2 };
 static constexpr uint MOTOR4_ENCB_PIN  {  3 };
 //static constexpr float MOTOR_PWM_FREQUENCY { 12500.0f }; // 1.25 kHz
 static constexpr float MOTOR_PWM_FREQUENCY { 25000.0f }; // 25 kHz
-static constexpr float MOTOR_TARGET_VOLTAGE { 6.5f };
+static constexpr float MOTOR_TARGET_VOLTAGE { 7.0f };
 static constexpr float MOTOR_SHAFT_CPR { 44 }; // Counts per revolution of motor shaft
 static constexpr float MOTOR_GEAR_RATIO { 34.02 }; // Gear ratio of shaft to wheel
 

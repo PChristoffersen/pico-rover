@@ -41,11 +41,15 @@ namespace Sensor {
 
             absolute_time_t update();
         
+            #ifndef NDEBUG
+            void print() const;
+            #endif
+
         private:
             static constexpr uint32_t RESET_DELAY_MS { 650 };
             static constexpr int64_t MAX_RESET_TIME_US { 800000ll };
-            static constexpr int64_t INTERVAL { 500000 };
-            static constexpr int64_t CALI_INTERVAL { 5000000ll };
+            static constexpr int64_t INTERVAL { 25000 };
+            static constexpr int64_t CALI_INTERVAL { 500000ll };
 
             const addr_type m_address;
             bool m_present;

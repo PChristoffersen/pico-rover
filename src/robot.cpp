@@ -1,7 +1,7 @@
 #include "robot.h"
 
 #include <boardconfig.h>
-#include <util/i2c_bus.h>
+
 
 Robot::Robot():
     // Sensors
@@ -30,9 +30,6 @@ Robot::Robot():
     m_led_strip { LED_STRIP_PIO, LED_STRIP_PIN, LED_STRIP_IS_RGBW },
     m_display { OLED_ADDRESS, OLED_TYPE },
 
-    // Misc
-    m_watchdog {},
-
     // Higher level objects
     m_telemetry_provider { *this },
     m_display_render { m_display, *this },
@@ -51,8 +48,6 @@ void Robot::init()
     m_led_builtin.init();
     m_led_builtin.on();
 
-    i2c_bus_init();
-
     for (auto &servo : m_servos) {
         servo.init();
         servo.set_enabled(true);
@@ -61,6 +56,8 @@ void Robot::init()
         motor.init();
     }
 
+    printf("Init --------- 1\n");
+
     m_led_strip.init();
     m_sys_sensor.init();
     m_battery_sensor.init();
@@ -68,13 +65,14 @@ void Robot::init()
     m_display.init();
     m_display_render.init();
 
+    printf("Init --------- 2\n");
+
     m_receiver.init();
     m_receiver_listener.init(m_receiver);
     m_telemetry_provider.init();
     m_receiver.set_telemetry_provider(&m_telemetry_provider);
 
-    m_watchdog.init();
-
+    printf("Init --------- 3\n");
 
     // Register callbacks
 
@@ -103,7 +101,6 @@ void Robot::init()
 
 void Robot::term()
 {
-    m_watchdog.term();
     m_display_render.off();
     m_led_strip.fill(LED::Color::BLACK);
     m_led_strip.show();

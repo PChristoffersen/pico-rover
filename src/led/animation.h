@@ -23,7 +23,8 @@ namespace LED::Animation {
 
             Periodic(StripBase &strip, interval_type interval) :
                 Base { strip },
-                m_last_update { get_absolute_time() }
+                m_last_update { get_absolute_time() },
+                m_interval { interval }
             {
             }
 
@@ -36,7 +37,7 @@ namespace LED::Animation {
             virtual absolute_time_t update() override 
             {
                 if (absolute_time_diff_us(m_last_update, get_absolute_time())>m_interval) {
-
+                    do_update();
                     m_last_update = delayed_by_us(m_last_update, m_interval);
                 }
                 return delayed_by_us(m_last_update, m_interval);

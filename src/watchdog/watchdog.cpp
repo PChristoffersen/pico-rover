@@ -10,6 +10,7 @@ namespace Watchdog {
 Watchdog::Watchdog()
 {
     ABSOLUTE_TIME_INITIALIZED_VAR(m_last_core1_ping, 0);
+    hw_write_masked(&watchdog_hw->ctrl, 0, WATCHDOG_CTRL_ENABLE_BITS);
 }
 
 
@@ -21,7 +22,6 @@ bool Watchdog::caused_reboot() const
 
 void Watchdog::init()
 {
-
 }
 
 
@@ -33,22 +33,20 @@ void Watchdog::term()
 
 void Watchdog::begin()
 {
-    watchdog_enable(INTERVAL, true);
+    if constexpr (!debug_build) {
+        watchdog_enable(INTERVAL, true);
+    }
+    watchdog_update();
     m_last_core1_ping = get_absolute_time();
 }
 
 absolute_time_t Watchdog::ping_core0()
 {
-    if constexpr (debug_build) {
-        return make_timeout_time_ms(60000);
+    if (absolute_time_diff_us(m_last_core1_ping, get_absolute_time())<INTERVAL*1000) {
+        // Only update watchdog if core1 has pinged us recently
+        watchdog_update();
     }
-    else {
-        if (absolute_time_diff_us(m_last_core1_ping, get_absolute_time())<INTERVAL*1000) {
-            // Only update watchdog if core1 has pinged us recently
-            watchdog_update();
-        }
-        return make_timeout_time_ms(PING_INTERVAL);
-    }
+    return make_timeout_time_ms(PING_INTERVAL);
 }
 
 

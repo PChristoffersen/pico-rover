@@ -12,7 +12,6 @@
 #include <oled/display.h>
 #include <radio/frsky_receiver.h>
 #include <radio/frsky_receiverlistener.h>
-#include <watchdog/watchdog.h>
 
 #include <telemetryprovider.h>
 #include <displayrender.h>
@@ -53,10 +52,6 @@ class Robot {
         Radio::FrSky::Receiver &receiver() { return m_receiver; }
         Radio::FrSky::ReceiverListener &receiver_listener() { return m_receiver_listener; }
 
-        // Misc
-        Watchdog::Watchdog &watchdog() { return m_watchdog; }
-
-
         TelemetryProvider &telemetry_provider() { return m_telemetry_provider; }
         DisplayRender &display_render() { return m_display_render; }
         LEDRender &led_render() { return m_led_render; }
@@ -75,8 +70,6 @@ class Robot {
         LED::Single m_led_builtin;
         LED::Strip<LED_STRIP_PIXEL_COUNT> m_led_strip;
         OLED::Display m_display;
-
-        Watchdog::Watchdog m_watchdog;
 
         TelemetryProvider m_telemetry_provider;
         DisplayRender m_display_render;

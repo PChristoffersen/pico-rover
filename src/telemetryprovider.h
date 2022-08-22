@@ -13,29 +13,17 @@ class TelemetryProvider : public Radio::FrSky::TelemetryProvider {
 
 
         #ifndef NDEBUG
+        absolute_time_t m_last_print;
+        uint m_last_count;
         void print_stats();
         #endif
 
     private:
-        static constexpr uint BATTERY_CELL_FREQUENCY  { 32 };
-        static constexpr uint BATTERY_CUR_FREQUENCY  { 32 };
-        static constexpr uint CPU_TEMP_FREQUENCY { 32 }; 
-        static constexpr uint VSYS_FREQUENCY     { 32 }; 
-
         class Robot &m_robot;
 
         uint m_count;
+        uint m_primary;
+        uint m_secondary;
 
-        uint m_last_battery_cell;
-        uint m_last_battery_cur;
-        uint m_last_cpu_temp;
-        uint m_last_vsys;
-
-        uint m_next_encoder;
-
-        // Stats
-        uint m_battery_count;
-        uint m_cpu_temp_count;
-        uint m_vsys_count;
-        uint m_rpm_count;
+        inline Radio::FrSky::Telemetry get_secondary();
 };

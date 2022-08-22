@@ -150,7 +150,7 @@ absolute_time_t INA219::update()
     }
     auto now = get_absolute_time();
     if (absolute_time_diff_us(m_last_update, now)>UPDATE_INTERVAL) {
-        if (!i2c_bus_acquire_timeout_us(50)) {
+        if (!i2c_bus_try_acquire()) {
             return delayed_by_us(now, 100);
         }
 

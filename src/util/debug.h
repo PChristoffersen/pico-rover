@@ -14,7 +14,7 @@
 void debug_init();
 
 static constexpr bool debug_build { 
-#ifndef NDEBUG
+#ifdef NDEBUG
     false
 #else
     true

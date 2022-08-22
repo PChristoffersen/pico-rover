@@ -31,8 +31,8 @@ class DisplayRender {
 
     private:
         static constexpr int64_t INTERVAL_STAGGER = 10000ll;
-        static constexpr int64_t BATTERY_INTERVAL = 50000ll;
-        static constexpr int64_t RADIO_INTERVAL   = 100000ll;
+        static constexpr int64_t BATTERY_INTERVAL = 200000ll;
+        static constexpr int64_t RADIO_INTERVAL   = 500000ll;
 
         OLED::Display &m_display;
         OLED::Framebuffer &m_framebuffer;

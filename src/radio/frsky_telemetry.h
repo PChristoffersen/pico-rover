@@ -89,7 +89,7 @@ namespace Radio::FrSky {
 
         static Telemetry rpm(uint8_t offset, float rpm)
         {
-            int32_t val = rpm*10;
+            int32_t val = 10.0f*rpm + 0.5f;
             return {
                 .app_id = static_cast<app_id_type>(FRDID_RPM_FIRST_ID+offset),
                 .data   = (data_type)val,
@@ -101,6 +101,30 @@ namespace Radio::FrSky {
             return {
                 .app_id = static_cast<app_id_type>(FRDID_SBEC_POWER_FIRST_ID+offset),
                 .data   = static_cast<data_type>(static_cast<uint16_t>(current)<<16 | static_cast<uint16_t>((voltage*1000.0f)+0.5f)),
+            };
+        }
+
+        
+        static Telemetry diy(uint16_t off , float data)
+        {
+            int32_t val = 10.0f*data+0.5f;
+            return {
+                .app_id = static_cast<app_id_type>(FRDID_DIY_FIRST_ID+off),
+                .data   = (data_type)val,
+            };
+        }
+        static Telemetry diy(uint16_t off , int32_t data)
+        {
+            return {
+                .app_id = static_cast<app_id_type>(FRDID_DIY_FIRST_ID+off),
+                .data   = (data_type)data,
+            };
+        }
+        static Telemetry diy(uint16_t off , uint32_t data)
+        {
+            return {
+                .app_id = static_cast<app_id_type>(FRDID_DIY_FIRST_ID+off),
+                .data   = (data_type)data,
             };
         }
     };

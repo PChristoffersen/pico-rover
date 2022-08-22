@@ -157,35 +157,43 @@ absolute_time_t DisplayRender::update_radio()
     if (absolute_time_diff_us(m_radio_last_update, get_absolute_time())>RADIO_INTERVAL) {
         const auto &channels = m_robot.receiver_listener().channels();
 
-        constexpr int AREA_LEFT   {  0 };
+        constexpr int TEXT_WIDTH  { 12 };
+        constexpr int AREA_LEFT   { 128-Image::Battery.width()-20-TEXT_WIDTH };
         constexpr int AREA_TOP    {  0 };
-        constexpr int AREA_WIDTH  { 16 };
+        constexpr int AREA_WIDTH  { 16+TEXT_WIDTH };
         constexpr int AREA_HEIGHT { 16 };
+        constexpr int ICON_LEFT  { AREA_LEFT+TEXT_WIDTH };
 
         m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, OLED::Framebuffer::DrawOp::SUBTRACT);
 
         if (!channels.sync()) {
             // Not in sync with receiver module
-            m_framebuffer.draw_bitmap(AREA_LEFT, AREA_TOP, Image::Warning);
+            m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::Warning);
         }
         else if (channels.flags().frameLost()) {
             // Receiver module lost connection to transmitter
-            m_framebuffer.draw_bitmap(AREA_LEFT, AREA_TOP, Image::NoConnection);
+            m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::NoConnection);
         }
         else {
             // All is good
+            constexpr auto font { Font::Fixed_8x8 };
             auto rssi = channels.rssi();
+            if (rssi>99) 
+                rssi = 99;
+            char text[4];
+            sprintf(text, "%u", rssi);
+            m_framebuffer.draw_text(AREA_LEFT, AREA_TOP, text, font);
             if (rssi > 80) {
-                m_framebuffer.draw_bitmap(AREA_LEFT, AREA_TOP, Image::Signal4);
+                m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::Signal4);
             }
             else if (rssi > 60) {
-                m_framebuffer.draw_bitmap(AREA_LEFT, AREA_TOP, Image::Signal3);
+                m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::Signal3);
             }
             else if (rssi > 40) {
-                m_framebuffer.draw_bitmap(AREA_LEFT, AREA_TOP, Image::Signal2);
+                m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::Signal2);
             }
             else {
-                m_framebuffer.draw_bitmap(AREA_LEFT, AREA_TOP, Image::Signal1);
+                m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::Signal1);
             }
         }
 
@@ -198,17 +206,18 @@ absolute_time_t DisplayRender::update_radio()
 
 void DisplayRender::update_armed(bool armed) 
 {
-    constexpr int AREA_LEFT   { 20 };
+    constexpr int AREA_LEFT   {  8 };
     constexpr int AREA_TOP    {  0 };
-    constexpr int AREA_WIDTH  { 16 };
-    constexpr int AREA_HEIGHT { 16 };
+    constexpr int AREA_WIDTH  { 24 };
+    constexpr int AREA_HEIGHT {  8 };
+
+    constexpr auto &font { Font::Fixed_5x8 };
 
     m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, OLED::Framebuffer::DrawOp::SUBTRACT);
     if (armed) {
-        m_framebuffer.draw_bitmap(AREA_LEFT, AREA_TOP, Image::Check);
+        m_framebuffer.draw_text(AREA_LEFT, AREA_TOP, "ARMED", font);
     }
     else {
-        m_framebuffer.draw_bitmap(AREA_LEFT, AREA_TOP, Image::Cancel);
     }
 }
 

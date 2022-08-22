@@ -15,13 +15,15 @@
 
 #include "boardconfig.h"
 #include "robot.h"
+#include "watchdog/watchdog.h"
 #include "util/time.h"
 #include "util/debug.h"
 #include "util/battery.h"
+#include "util/i2c_bus.h"
 
 
 static Robot robot;
-
+static Watchdog::Watchdog watchdog;
 
 #define WATCHDOG_INTERVAL 1000u // 1 second
 
@@ -106,6 +108,7 @@ static absolute_time_t main_update()
                 break;
             case 3: 
                 {
+                    robot.imu().print();
                 }
                 break;
         }
@@ -155,7 +158,7 @@ static void print_banner()
     printf("       Board-id: %s\n", board_id);
 
     printf("           Boot: ");
-    if (robot.watchdog().caused_reboot()) {
+    if (watchdog.caused_reboot()) {
         printf("Rebooted by Watchdog!\n");
     }
     else {
@@ -180,6 +183,7 @@ static void print_banner()
 
 static void init() 
 {
+    watchdog.init();
 
     robot.init();
 
@@ -199,6 +203,7 @@ static void init()
             servos[1].put((-mapping.s2()).asServoPulse());
             drive_wheels(mapping);
         }
+        robot.led_render().set_mode(static_cast<uint>(mapping.sc()));
     });
 
 
@@ -247,13 +252,14 @@ static void main_core1()
     sem_acquire_blocking(&core1_sem);
     while (core1_running) {
         wait = robot.receiver().update();
-        wait = earliest_time(wait, robot.watchdog().ping_core1());
+        wait = earliest_time(wait, watchdog.ping_core1());
         wait = earliest_time(wait, robot.sys_sensor().update());
         wait = earliest_time(wait, robot.battery_sensor().update());
         wait = earliest_time(wait, robot.imu().update());
         wait = earliest_time(wait, Motor::Encoder::update());
 
-        sleep_until(wait);
+        busy_wait_until(wait);
+        //sleep_until(wait);
     }
     sem_release(&core1_sem);
 }
@@ -292,7 +298,7 @@ static void main_core0()
 
     while (true) {
         wait = robot.led_builtin().update();
-        wait = earliest_time(wait, robot.watchdog().ping_core0());
+        wait = earliest_time(wait, watchdog.ping_core0());
         wait = earliest_time(wait, robot.receiver_listener().update());
         wait = earliest_time(wait, main_update());
         wait = earliest_time(wait, robot.led_render().update());
@@ -316,6 +322,7 @@ int main()
 {
     stdio_init_all();
     debug_init();
+    i2c_bus_init();
 
     // Init basic systems
     init();
@@ -329,10 +336,7 @@ int main()
     core1_init();
     core1_start();
 
-    if constexpr (!debug_build) {
-        printf("Enabling watchdog\n");
-        robot.watchdog().begin();
-    }
+    watchdog.begin();
 
     // Enter main loop
     main_core0();

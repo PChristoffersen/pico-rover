@@ -479,7 +479,7 @@ absolute_time_t Receiver::do_read_uplink()
     if (bufsz==0 && wait_time > FBUS_UPLINK_SEND_TIMEOUT_US) {
         // No uplink is comming
         begin_read_control();
-        return make_timeout_time_us(FBUS_UPLINK_POST_DELAY_US-wait_time);
+        return get_absolute_time();
     }
 
     if (bufsz<FBUS_UPLINK_HDR) {

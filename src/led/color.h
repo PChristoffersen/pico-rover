@@ -126,7 +126,7 @@ namespace LED {
     constexpr Color Color::RED         { 1.0f, 0.0f, 0.0f };
     constexpr Color Color::GREEN       { 0.0f, 1.0f, 0.0f };
     constexpr Color Color::BLUE        { 0.0f, 0.0f, 1.0f };
-    constexpr Color Color::YELLOW      { 0.0f, 1.0f, 1.0f };
+    constexpr Color Color::YELLOW      { 1.0f, 1.0f, 0.0f };
     constexpr Color Color::CYAN        { 0.0f, 1.0f, 1.0f };
     constexpr Color Color::MAGENTA     { 1.0f, 0.0f, 1.0f };
 

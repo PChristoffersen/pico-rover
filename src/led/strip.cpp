@@ -43,6 +43,12 @@ void __isr StripBase::dma_complete_handler()
                 sem_release(&strip->m_reset_sem);
                 return 0;
             }, strip, true);
+            if (strip->m_reset_alarm<0) {
+                // Fore some reason we did not get an alarm so we just release the semaphore and hope for the best
+                strip->m_reset_alarm = 0;
+                sem_release(&strip->m_reset_sem);
+                assert(false);
+            }
         }
     }
 }

@@ -22,7 +22,9 @@ namespace Motor {
             using id_type = uint;
             using value_t = uint16_t;
 
-            Servo(id_type id, uint pin);
+            static constexpr value_t INITIAL_POSITION = 1500u;
+
+            Servo(id_type id, uint pin, value_t initial = INITIAL_POSITION);
             Servo(const Servo&) = delete; // No copy constructor
             Servo(Servo&&) = delete; // No move constructor
 
@@ -42,7 +44,6 @@ namespace Motor {
              */
             static constexpr uint16_t PWM_WRAP = 20000u;
             static constexpr float PWM_DIV = 1000000.0f;
-            static constexpr value_t INITIAL_POSITION = 1500u;
 
             const id_type m_id;
             const uint m_pin;

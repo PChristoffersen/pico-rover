@@ -16,10 +16,14 @@ class LEDRender {
 
         void update_connected(bool connected);
 
+        void set_mode(uint mode);
+
     private:
         LED::StripBase &m_strip;
 
         class Robot &m_robot;
+
+        uint m_mode;
 
         std::unique_ptr<LED::Animation::Base> m_animation;
 };

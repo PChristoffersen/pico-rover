@@ -12,13 +12,13 @@ namespace Motor {
 
 
 
-Servo::Servo(id_type id, uint pin) :
+Servo::Servo(id_type id, uint pin, value_t initial) :
     m_id { id },
     m_pin { pin },
     m_slice { 0 },
     m_channel { 0 },
     m_enabled  { false },
-    m_value { INITIAL_POSITION }
+    m_value { initial }
 {
     mutex_init(&m_mutex);
 }
@@ -30,8 +30,6 @@ void Servo::init()
     gpio_init(m_pin);
     gpio_set_dir(m_pin, GPIO_OUT);
     gpio_put(m_pin, 0);
-    
-    gpio_set_function(m_pin, GPIO_FUNC_PWM);
     #endif
 
     m_slice = pwm_gpio_to_slice_num(m_pin);
@@ -40,7 +38,13 @@ void Servo::init()
     pwm_set_wrap(m_slice,  PWM_WRAP);
     pwm_set_clkdiv(m_slice, clock_get_hz(clk_sys)/PWM_DIV);
 
+    printf("Init: %u %u\n", m_id, m_value);
     pwm_set_chan_level(m_slice, m_channel, 0);
+
+
+    #ifndef DEBUG_USE_SERVO_PINS
+    gpio_set_function(m_pin, GPIO_FUNC_PWM);
+    #endif
 
     pwm_set_enabled(m_slice, true);
 }
