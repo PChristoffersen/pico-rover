@@ -8,11 +8,6 @@
 #include <hardware/clocks.h>
 #include <hardware/i2c.h>
 
-
-#if LIB_PICO_STDIO_USB
-#include <tusb.h>
-#endif
-
 #include "boardconfig.h"
 #include "robot.h"
 #include "watchdog/watchdog.h"
@@ -20,6 +15,10 @@
 #include "util/debug.h"
 #include "util/battery.h"
 #include "util/i2c_bus.h"
+#include "util/usb_bus.h"
+
+#include <rmw_microros/rmw_microros.h>
+#include "ros/pico_cdc_transport.h"
 
 
 static Robot robot;
@@ -132,14 +131,14 @@ static absolute_time_t main_update()
  */
 static void wait_cdc() 
 {
-#if LIB_PICO_STDIO_USB
-    led_builtin.set_interval(100000u);
-    auto blinking = led_builtin.blink();
+#if LIB_PICO_STDIO_USB && false
+    robot.led_builtin().set_interval(100000u);
+    auto blinking = robot.led_builtin().blink();
     while (!stdio_usb_connected()) {
-        sleep_until(led_builtin.update());
+        sleep_until(robot.led_builtin().update());
     }
-    led_builtin.set_interval(LED::Single::DEFAULT_BLINK_INTERVAL);
-    if (!blinking) led_builtin.on();
+    robot.led_builtin().set_interval(LED::Single::DEFAULT_BLINK_INTERVAL);
+    if (!blinking) robot.led_builtin().on();
 #endif
 }
 
@@ -230,6 +229,15 @@ static void init()
     #endif
 
 
+    rmw_uros_set_custom_transport(
+		true,
+		NULL,
+		pico_cdc_transport_open,
+		pico_cdc_transport_close,
+		pico_cdc_transport_write,
+		pico_cdc_transport_read
+	);
+
 }
 
 
@@ -299,8 +307,9 @@ static void main_core0()
     while (true) {
         wait = robot.led_builtin().update();
         wait = earliest_time(wait, watchdog.ping_core0());
-        wait = earliest_time(wait, robot.receiver_listener().update());
+        wait = earliest_time(wait, usb_bus_update());
         wait = earliest_time(wait, main_update());
+        wait = earliest_time(wait, robot.receiver_listener().update());
         wait = earliest_time(wait, robot.led_render().update());
         wait = earliest_time(wait, robot.display_render().update());
 
@@ -322,6 +331,7 @@ int main()
 {
     stdio_init_all();
     debug_init();
+    usb_bus_init();
     i2c_bus_init();
 
     // Init basic systems

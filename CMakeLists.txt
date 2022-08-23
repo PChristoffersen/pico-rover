@@ -30,6 +30,7 @@ add_executable(${PROJECT_NAME}
     src/displayrender.cpp
     src/ledrender.cpp
     src/robot.cpp
+    src/usb_descriptors.c
     src/telemetryprovider.cpp
     src/led/single.cpp
     src/led/strip.cpp
@@ -46,7 +47,9 @@ add_executable(${PROJECT_NAME}
     src/sensor/ina219.cpp
     src/util/debug.cpp
     src/util/i2c_bus.cpp
+    src/util/usb_bus.cpp
     src/watchdog/watchdog.cpp
+    src/ros/pico_cdc_transport.cpp
 )
 
 
@@ -69,7 +72,8 @@ else()
     pico_enable_stdio_usb(${PROJECT_NAME} 1)
 endif()
 
-target_include_directories(${PROJECT_NAME} AFTER PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/src)
+#target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_UART_ENABLE_CRLF_SUPPORT=0)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_ENABLE_CRLF_SUPPORT=0)
@@ -78,7 +82,6 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_UART_TX_PIN=16)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_UART_RX_PIN=17)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SDA_PIN=21)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SCL_PIN=20)
-
 
 
 # Add PIO programs
@@ -115,6 +118,8 @@ target_link_libraries(${PROJECT_NAME}
     pico_stdlib
     pico_unique_id
     pico_multicore
+    tinyusb_device 
+    tinyusb_board
 )
  
 # Add any user requested libraries
@@ -126,6 +131,12 @@ target_link_libraries(${PROJECT_NAME}
     hardware_dma 
     hardware_adc
 )
+
+#Add Micro-ROS
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/micro_ros_raspberrypi_pico_sdk/libmicroros/include)
+target_link_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/micro_ros_raspberrypi_pico_sdk/libmicroros)
+target_link_libraries(${PROJECT_NAME} microros)
+
 
 
 pico_add_extra_outputs(${PROJECT_NAME})

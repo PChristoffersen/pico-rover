@@ -184,11 +184,37 @@ void Framebuffer::draw_bitmap(int x, int y, const uint8_t *bitmap, uint w, uint 
             }
             bitmap+=w;
         }
-
     }
     else {
-        // TODO
-        assert(false);
+        int shift = y & PAGE_MASK;
+        int y1 = y & ~PAGE_MASK;
+
+        int off = 0;
+        for (int y_ = y1; y_ < y2; y_+=(PAGE_MASK+1)) {
+            int pg = y_/(PAGE_MASK+1);
+            if (pg>=0 && pg<static_cast<int>(pages())) {
+                auto buf = page(pg);
+                if (y_ == y1) {
+                    for (int i=x1; i<=x2; ++i) {
+                        _pixel_op(buf[i], bitmap[off+i-x1]<<shift, op);
+                    }
+                }
+                else if (y_+shift-y < static_cast<int>(h)) {
+                    for (int i=x1; i<=x2; ++i) {
+                        uint8_t v = bitmap[off+i-x1-w]>>(PAGE_MASK+1-shift);
+                        v |= (bitmap[off+i-x1]<<shift);
+                        _pixel_op(buf[i], v, op);
+                    }
+                }
+                else {
+                    for (int i=x1; i<=x2; ++i) {
+                        _pixel_op(buf[i], bitmap[off+i-x1-w]>>(PAGE_MASK+1-shift), op);
+                    }
+                }
+            }
+            off+=w;
+        }
+
     }
 
     m_dirty = true;
