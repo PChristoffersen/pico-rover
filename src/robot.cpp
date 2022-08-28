@@ -1,5 +1,6 @@
 #include "robot.h"
 
+#include <pico/stdlib.h>
 #include <boardconfig.h>
 
 
@@ -26,7 +27,10 @@ Robot::Robot():
     m_receiver_listener {},
 
     // LED/Displays
+    #ifdef RASPBERRYPI_PICO_W
+    #else    
     m_led_builtin { PICO_DEFAULT_LED_PIN },
+    #endif
     m_led_strip { LED_STRIP_PIO, LED_STRIP_PIN, LED_STRIP_IS_RGBW },
     m_display { OLED_ADDRESS, OLED_TYPE },
 

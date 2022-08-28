@@ -7,6 +7,7 @@
 #include <sensor/bno0055.h>
 #include <motor/dcmotor.h>
 #include <motor/servo.h>
+#include <led/dummy.h>
 #include <led/single.h>
 #include <led/strip.h>
 #include <oled/display.h>
@@ -22,6 +23,12 @@ class Robot {
     public:
         using armed_callback_type = Callback<bool>;
         using connected_callback_type = Callback<bool>;
+        
+        #ifdef RASPBERRYPI_PICO_W
+        using led_type = LED::Dummy;
+        #else
+        using led_type = LED::Single;
+        #endif
 
         Robot();
         Robot(const Robot&) = delete; // No copy constructor
@@ -44,7 +51,7 @@ class Robot {
         Motor::DCMotor::array_type &motors() { return m_motors; }
 
         // LED/Displays
-        LED::Single &led_builtin() { return m_led_builtin; };
+        led_type &led_builtin() { return m_led_builtin; };
         LED::Strip<LED_STRIP_PIXEL_COUNT> &led_strip() { return m_led_strip; }
         OLED::Display &display() { return m_display; }
 
@@ -67,7 +74,7 @@ class Robot {
         Radio::FrSky::Receiver m_receiver;
         Radio::FrSky::ReceiverListener m_receiver_listener;
 
-        LED::Single m_led_builtin;
+        led_type m_led_builtin;
         LED::Strip<LED_STRIP_PIXEL_COUNT> m_led_strip;
         OLED::Display m_display;
 

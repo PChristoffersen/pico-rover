@@ -17,12 +17,12 @@
 #include "util/i2c_bus.h"
 #include "util/usb_bus.h"
 
-#include <rmw_microros/rmw_microros.h>
-#include "ros/pico_cdc_transport.h"
+#include "ros/client.h"
 
 
 static Robot robot;
 static Watchdog::Watchdog watchdog;
+static ROS::Client ros;
 
 #define WATCHDOG_INTERVAL 1000u // 1 second
 
@@ -182,10 +182,6 @@ static void print_banner()
 
 static void init() 
 {
-    watchdog.init();
-
-    robot.init();
-
     // Register callbacks
     robot.receiver_listener().add_callback([](auto &channels, auto &mapping){
         if (!channels.sync() || channels.flags().frameLost()) {
@@ -227,16 +223,6 @@ static void init()
         }
     });
     #endif
-
-
-    rmw_uros_set_custom_transport(
-		true,
-		NULL,
-		pico_cdc_transport_open,
-		pico_cdc_transport_close,
-		pico_cdc_transport_write,
-		pico_cdc_transport_read
-	);
 
 }
 
@@ -308,10 +294,11 @@ static void main_core0()
         wait = robot.led_builtin().update();
         wait = earliest_time(wait, watchdog.ping_core0());
         wait = earliest_time(wait, usb_bus_update());
-        wait = earliest_time(wait, main_update());
         wait = earliest_time(wait, robot.receiver_listener().update());
         wait = earliest_time(wait, robot.led_render().update());
         wait = earliest_time(wait, robot.display_render().update());
+        wait = earliest_time(wait, main_update());
+        wait = earliest_time(wait, ros.update());
 
         if (robot.display().update_needed()) {
             robot.display().update_block_until(wait);
@@ -331,10 +318,13 @@ int main()
 {
     stdio_init_all();
     debug_init();
-    usb_bus_init();
     i2c_bus_init();
+    usb_bus_init();
 
     // Init basic systems
+    watchdog.init();
+    robot.init();
+    ros.init();
     init();
 
     // All subsystems running

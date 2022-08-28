@@ -29,6 +29,8 @@ namespace OLED {
             };
 
             Display(Address address, Type type);
+            Display(const Display&) = delete; // No copy constructor
+            Display(Display&&) = delete; // No move constructor
 
             void init();
             bool present() { return m_present; }

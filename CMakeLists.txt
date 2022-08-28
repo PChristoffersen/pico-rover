@@ -15,6 +15,7 @@ include(pico_sdk_import.cmake)
 project(pico-rover LANGUAGES C CXX ASM)
 
 set(PICO_BOARD pico)
+#set(PICO_BOARD pico_w)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
@@ -32,6 +33,7 @@ add_executable(${PROJECT_NAME}
     src/robot.cpp
     src/usb_descriptors.c
     src/telemetryprovider.cpp
+    src/led/dummy.cpp
     src/led/single.cpp
     src/led/strip.cpp
     src/motor/dcmotor.cpp
@@ -49,7 +51,10 @@ add_executable(${PROJECT_NAME}
     src/util/i2c_bus.cpp
     src/util/usb_bus.cpp
     src/watchdog/watchdog.cpp
+    src/ros/client.cpp
+    src/ros/hal.c
     src/ros/pico_cdc_transport.cpp
+    src/ros/pico_tcp_transport.cpp
 )
 
 
@@ -112,7 +117,6 @@ font_generate_header(${PROJECT_NAME} LiberationSans:Bold 16 LiberationSans_16 ${
 font_generate_header(${PROJECT_NAME} LiberationSans:Bold 24 LiberationSans_24 ${PROJECT_BINARY_DIR}/generated/resources)
 
 
-
 # Add the standard library to the build
 target_link_libraries(${PROJECT_NAME} 
     pico_stdlib
@@ -132,7 +136,16 @@ target_link_libraries(${PROJECT_NAME}
     hardware_adc
 )
 
-#Add Micro-ROS
+
+# Add wifi
+if(PICO_BOARD STREQUAL "pico_w")
+    target_link_libraries(${PROJECT_NAME}
+        pico_cyw43_arch_lwip_threadsafe_background
+    )
+endif()
+
+
+# Add Micro-ROS
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/micro_ros_raspberrypi_pico_sdk/libmicroros/include)
 target_link_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/micro_ros_raspberrypi_pico_sdk/libmicroros)
 target_link_libraries(${PROJECT_NAME} microros)
