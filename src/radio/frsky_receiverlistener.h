@@ -2,6 +2,7 @@
 
 #include <pico/stdlib.h>
 #include <pico/util/queue.h>
+#include <rtos.h>
 
 #include <util/callback.h>
 
@@ -26,24 +27,29 @@ namespace Radio::FrSky {
 
             void init(Receiver &receiver);
 
-            absolute_time_t update();
-
             const channels_type &channels() const { return m_channels; }
             const mapping_type &mapping() const { return m_mapping; }
 
             void add_callback(callback_type::call_type cb) { m_callback.add(cb); }
 
         private:
+            static constexpr uint TASK_STACK_SIZE { configMINIMAL_STACK_SIZE };
             static constexpr uint QUEUE_SIZE { 2 };
-            static constexpr int64_t POLL_INTERVAL { 3500 }; // 3.5 ms
 
-            absolute_time_t m_last_event;
-            queue_t m_queue;
-            
+            uint8_t m_buffer_data[QUEUE_SIZE*sizeof(channels_type)];
+            StaticMessageBuffer_t m_buffer_buf;
+            MessageBufferHandle_t m_buffer;
+
+            StaticTask_t m_task_buf;
+            StackType_t m_task_stack[TASK_STACK_SIZE];
+            TaskHandle_t m_task;
+
             channels_type m_channels;
             mapping_type m_mapping;
 
             callback_type m_callback;
+
+            void run();
     };
 
 };

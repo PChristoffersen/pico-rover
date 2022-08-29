@@ -10,8 +10,8 @@
 
 #include <array>
 #include <pico/stdlib.h>
-#include <pico/mutex.h>
 #include <hardware/pio.h>
+#include <rtos.h>
 
 #include "encoder.h"
 
@@ -74,7 +74,8 @@ namespace Motor {
 
             uint m_slice;
 
-            mutex_t m_mutex;
+            StaticSemaphore_t m_mutex_buf;
+            SemaphoreHandle_t m_mutex;
 
             bool m_enabled;
             float m_duty;
@@ -83,7 +84,6 @@ namespace Motor {
 
             void update_duty();
 
-            static critical_section_t m_global_lock;
             static uint m_enable_count;
             static bool m_global_enabled;
             static float m_supply_voltage;

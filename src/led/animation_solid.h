@@ -14,15 +14,13 @@ namespace LED::Animation {
             {
             }
 
-            virtual void begin() override 
+            virtual void start() override 
             {
                 m_strip.fill(m_color);
                 m_strip.show();
             }
-
-            virtual absolute_time_t update() override 
-            {
-                return make_timeout_time_ms(60000);
+            virtual void stop() override
+            {                
             }
 
         private:

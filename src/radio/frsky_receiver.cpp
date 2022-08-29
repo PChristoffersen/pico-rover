@@ -32,76 +32,30 @@ Receiver::Receiver(uart_inst_t *uart, uint baudrate, uint tx_pin, uint rx_pin) :
     m_tx_pin { tx_pin },
     m_rx_pin { rx_pin },
     m_uart { uart },
+    m_task { nullptr }, 
+    m_rx_scratch_size { 0 },
+    m_rx_buffer { nullptr },
+    m_tx_buffer { nullptr },
     m_state { State::SYNCING },
     m_control_packets { 0 }
 {
     assert(m_instance==nullptr);
-    mutex_init(&m_mutex);
     m_instance = this;
+    m_mutex = xSemaphoreCreateBinaryStatic(&m_mutex_buf);
+    assert(m_mutex);
+    xSemaphoreGive(m_mutex);
 }
 
 
 void Receiver::init()
 {
     assert(m_instance==this);
-}
 
-
-
-inline void Receiver::irq_set_tx_enable(bool enable)
-{
-    hw_write_masked(&uart_get_hw(m_uart)->imsc, bool_to_bit(enable) << UART_UARTIMSC_TXIM_LSB, UART_UARTIMSC_TXIM_BITS);
-}
-
-void Receiver::start_tx()
-{
-    m_tx_buffer.enter_blocking();
-    while (uart_is_writable(m_uart) && !m_tx_buffer.empty()) {
-        uint8_t ch = m_tx_buffer.head();
-        uart_write_blocking(m_uart, &ch, sizeof(ch));
-        m_tx_buffer.pop(1);
-    }
-    if (!m_tx_buffer.empty()) {
-        irq_set_tx_enable(true);
-    }
-    m_tx_buffer.exit();
-}
-
-
-inline void Receiver::isr_handler()
-{
-    uint8_t ch;
-
-    auto status = uart_get_hw(m_uart)->mis;
-
-    m_rx_buffer.enter_blocking();
-    while (uart_is_readable(m_uart)) {
-        uart_read_blocking(m_uart, &ch, sizeof(ch));
-        m_rx_buffer.push(ch);
-    }
-    m_last_rx_time = get_absolute_time();
-    m_rx_buffer.exit();
-
-    if (status & UART_UARTMIS_TXMIS_BITS) {
-        m_tx_buffer.enter_blocking();
-        while (uart_is_writable(m_uart) && !m_tx_buffer.empty()) {
-            ch = m_tx_buffer.pop();
-            uart_write_blocking(m_uart, &ch, sizeof(ch));
-        }
-        if (m_tx_buffer.empty()) {
-            irq_set_tx_enable(false);
-        }
-        m_tx_buffer.exit();
-    }
-}
-
-
-
-void Receiver::begin()
-{
-    assert(m_instance==this);
-    m_rx_buffer.clear();
-    m_tx_buffer.clear();
+    m_rx_scratch_size = 0;
+    m_rx_buffer = xStreamBufferCreateStatic(RX_BUFFER_SIZE, 1, m_rx_buffer_data, &m_rx_buffer_buf);
+    assert(m_rx_buffer);
+    m_tx_buffer = xStreamBufferCreateStatic(TX_BUFFER_SIZE, 1, m_tx_buffer_data, &m_tx_buffer_buf);
+    assert(m_tx_buffer);
 
     #ifndef DEBUG_USE_RADIO_PINS
     gpio_set_function(m_tx_pin, GPIO_FUNC_UART);
@@ -113,6 +67,92 @@ void Receiver::begin()
     uart_set_translate_crlf(m_uart, false);
     #endif
 
+    begin_sync();
+
+    m_task = xTaskCreateStatic([](auto args){ reinterpret_cast<Receiver*>(args)->run(); }, "RC", TASK_STACK_SIZE, this, RECEIVER_TASK_PRIORITY, m_task_stack, &m_task_buf);
+    vTaskCoreAffinitySet(m_task, 0b10);
+    assert(m_task);
+}
+
+
+
+inline void Receiver::irq_set_tx_enable(bool enable)
+{
+    hw_write_masked(&uart_get_hw(m_uart)->imsc, bool_to_bit(enable) << UART_UARTIMSC_TXIM_LSB, UART_UARTIMSC_TXIM_BITS);
+}
+
+
+void Receiver::rx_scratch_recv(size_t bytes)
+{
+    while (m_rx_scratch_size<bytes) {
+        size_t rsz = bytes-m_rx_scratch_size;
+        xStreamBufferSetTriggerLevel(m_rx_buffer, rsz);
+        auto res = xStreamBufferReceive(m_rx_buffer, m_rx_scratch+m_rx_scratch_size, rsz, portMAX_DELAY);
+        m_rx_scratch_size+=res;
+    }
+}
+
+
+void Receiver::rx_scratch_pop(size_t bytes)
+{
+    assert(m_rx_scratch_size>=bytes);
+    for (size_t i=bytes; i<m_rx_scratch_size; ++i) {
+        m_rx_scratch[i-bytes] = m_rx_scratch[i];
+    }
+    m_rx_scratch_size-=bytes;
+}
+
+
+void Receiver::tx_send(const uint8_t *buf, size_t sz)
+{
+    while (uart_is_writable(m_uart) && sz) {
+        uint8_t ch = *buf;
+        uart_write_blocking(m_uart, &ch, sizeof(ch));
+        sz-=1;
+        buf++;
+    }
+    if (sz) {
+        xStreamBufferSend(m_tx_buffer, buf, sz, portMAX_DELAY);
+        irq_set_tx_enable(true);
+    }
+}
+
+
+
+
+
+
+inline void Receiver::isr_handler()
+{
+    uint8_t ch;
+
+    auto status = uart_get_hw(m_uart)->mis;
+
+    while (uart_is_readable(m_uart)) {
+        uart_read_blocking(m_uart, &ch, sizeof(ch));
+        if (xStreamBufferSendFromISR(m_rx_buffer, &ch, 1, nullptr)!=sizeof(ch))
+            break;
+    }
+    auto saved = taskENTER_CRITICAL_FROM_ISR();
+    m_last_rx_time = get_absolute_time();
+    taskEXIT_CRITICAL_FROM_ISR(saved);
+
+    if (status & UART_UARTMIS_TXMIS_BITS) {
+        while (uart_is_writable(m_uart) && !xStreamBufferIsEmpty(m_tx_buffer)) {
+            if (xStreamBufferReceiveFromISR(m_tx_buffer, &ch, sizeof(ch), nullptr)==sizeof(ch)) {
+                uart_write_blocking(m_uart, &ch, sizeof(ch));
+            }
+        }
+        if (xStreamBufferIsEmpty(m_tx_buffer)) {
+            irq_set_tx_enable(false);
+        }
+    }
+}
+
+
+
+void Receiver::init_isr()
+{
     uint UART_IRQ = m_uart == uart0 ? UART0_IRQ : UART1_IRQ;
     irq_set_exclusive_handler(UART_IRQ, +[]() { m_instance->isr_handler(); });
     irq_set_enabled(UART_IRQ, true);
@@ -122,8 +162,6 @@ void Receiver::begin()
     hw_write_masked(&uart_get_hw(m_uart)->ifls, 0b010 << UART_UARTIFLS_RXIFLSEL_LSB, UART_UARTIFLS_RXIFLSEL_BITS);
     // Set maximum tx threshold to 1/2
     hw_write_masked(&uart_get_hw(m_uart)->ifls, 0b000 << UART_UARTIFLS_TXIFLSEL_LSB, UART_UARTIFLS_TXIFLSEL_BITS);
-
-    begin_sync();
 }
 
 
@@ -132,39 +170,21 @@ void Receiver::lost_sync()
 {
     debugf("Lost sync for too long\n");
 
-    mutex_enter_blocking(&m_mutex);
-
+    xSemaphoreTake(m_mutex, portMAX_DELAY);
     m_channels.set_flags(Flags::INITIAL_VALUE);
     m_channels.set_rssi(0);
     m_channels.set_sync(false);
-
-    mutex_exit(&m_mutex);
+    xSemaphoreGive(m_mutex);
 
     m_control_callback(m_channels);
 }
 
 
 
-/**
- * @brief Calculate how many us to wait for serial buffer to fill
- * 
- * @param bytes number of bytes to wait for
- * @return uint64_t wait time in us
- */
-uint64_t Receiver::buffer_wait_time_us(int bytes) 
-{
-    if (bytes<0) {
-        return 0;
-    }
-    uint bits = std::min<uint>(bytes, BUFFER_MAX_WAIT_CHARS) * 10u; // Calculate bits to wait for including start and stop bit
-    uint64_t wait_us = 1000000ull * bits / m_baudrate;
-    return wait_us;
-}
-
 
 void Receiver::begin_sync()
 {
-    debugf("Begin SYNC!!   %u\n", m_rx_buffer.size_blocking());
+    debugf("Begin SYNC!!   %u\n", m_rx_scratch_size);
     m_state = State::SYNCING;
     m_sync_begin_time = get_absolute_time();
 }
@@ -172,35 +192,28 @@ void Receiver::begin_sync()
 
 void Receiver::begin_read_control()
 {
-    //printf("Begin CTRL   %u\n", m_rx_buffer.size_blocking());
+    //printf("Begin CTRL   %u\n", m_rx_scratch_size);
     m_state = State::READ_CONTROL;
 }
 
 
 void Receiver::begin_read_downlink()
 {
-    //printf("Begin DOWN   %u\n", m_rx_buffer.size_blocking());
+    //printf("Begin DOWN   %u\n", m_rx_scratch_size);
     m_state = State::READ_DOWNLINK;
-}
-
-
-void Receiver::begin_wait_write_uplink()
-{
-    //printf("Begin WAIT_WUP\n");
-    m_state = State::WAIT_WRITE_UPLINK;
 }
 
 
 void Receiver::begin_write_uplink()
 {
-    //printf("Begin WUP\n");
+    //printf("Begin WUPL\n");
     m_state = State::WRITE_UPLINK;
 }
 
 
 void Receiver::begin_read_uplink()
 {
-    //printf("Begin UPL\n");
+    //printf("Begin RUPL\n");
     m_state = State::READ_UPLINK;
 }
 
@@ -208,88 +221,72 @@ void Receiver::begin_read_uplink()
 
 
 
-absolute_time_t Receiver::do_sync()
+void Receiver::do_sync()
 {
-    size_t bufsz;
-    
     if (!m_channels.flags().frameLost() && absolute_time_diff_us(m_sync_begin_time, get_absolute_time())>SYNC_TIMEOUT) {
         // We lost sync too long, set frame lost
         lost_sync();
     }
 
-  again:
-    bufsz = m_rx_buffer.size_blocking();
-
-    if (bufsz<2) {
-        return make_timeout_time_us(buffer_wait_time_us(FBUS_CONTROL_8CH_SIZE-bufsz));
-    }
+    // We need at least 2 bytes
+    rx_scratch_recv(2);
 
     // Look for header byte
-    if (m_rx_buffer[1]!=FBUS_CONTROL_HDR) {
-        m_rx_buffer.pop_blocking(1);
-        goto again;
+    if (m_rx_scratch[1]!=FBUS_CONTROL_HDR) {
+        rx_scratch_pop(1);
+        return;
     }
     //printf("Got control hdr %02x %02x\n", g_receiver_buffer[0], g_receiver_buffer[1]);
 
     // Check size 
-    if (m_rx_buffer[0]!=FBUS_CONTROL_8CH_SIZE && m_rx_buffer[0]!=FBUS_CONTROL_16CH_SIZE && m_rx_buffer[0]!=FBUS_CONTROL_24CH_SIZE) {
+    if (m_rx_scratch[0]!=FBUS_CONTROL_8CH_SIZE && m_rx_scratch[0]!=FBUS_CONTROL_16CH_SIZE && m_rx_scratch[0]!=FBUS_CONTROL_24CH_SIZE) {
         // Incorrect size - drop the first two bytes 
-        m_rx_buffer.pop_blocking(2);
-        goto again;
+        rx_scratch_pop(2);
+        return;
     }
 
     // Check if we have a full control package
-    if (bufsz<fbus_control_size(m_rx_buffer)) {
-        return make_timeout_time_us(buffer_wait_time_us(fbus_control_size(m_rx_buffer)-bufsz));
-    }
+    rx_scratch_recv(fbus_control_size(m_rx_scratch));
 
     // Check CRC
-    if (fbus_checksum(m_rx_buffer, FBUS_CONTROL_HDR_SIZE, m_rx_buffer[0])!=fbus_control_crc(m_rx_buffer)) {
-        m_rx_buffer.pop_blocking(2);
-        return get_absolute_time();
+    if (fbus_checksum(m_rx_scratch, FBUS_CONTROL_HDR_SIZE, m_rx_scratch[0])!=fbus_control_crc(m_rx_scratch)) {
+        rx_scratch_pop(2);
+        return;
     }
     // Control package OK
 
     // Everything checks out - we are in sync
     begin_read_control();
-
-    return get_absolute_time();
 }
 
 
 
-absolute_time_t Receiver::do_read_control()
+void Receiver::do_read_control()
 {
-    size_t bufsz = m_rx_buffer.size_blocking();
+    rx_scratch_recv(FBUS_CONTROL_HDR_SIZE);
 
-    if (bufsz<FBUS_CONTROL_HDR_SIZE) {
-        return make_timeout_time_us(buffer_wait_time_us(FBUS_CONTROL_8CH_SIZE-bufsz));
-    }
-
-    if (m_rx_buffer[1]!=FBUS_CONTROL_HDR) {
+    if (m_rx_scratch[1]!=FBUS_CONTROL_HDR) {
         // Lost sync
         begin_sync();
-        return get_absolute_time();
+        return;
     }
 
-    if (m_rx_buffer[1]!=FBUS_CONTROL_HDR || (m_rx_buffer[0]!=FBUS_CONTROL_8CH_SIZE && m_rx_buffer[0]!=FBUS_CONTROL_16CH_SIZE && m_rx_buffer[0]!=FBUS_CONTROL_24CH_SIZE)) {
+    if (m_rx_scratch[1]!=FBUS_CONTROL_HDR || (m_rx_scratch[0]!=FBUS_CONTROL_8CH_SIZE && m_rx_scratch[0]!=FBUS_CONTROL_16CH_SIZE && m_rx_scratch[0]!=FBUS_CONTROL_24CH_SIZE)) {
         // Lost sync
         begin_sync();
-        return get_absolute_time();
+        return;
     }
 
-    if (bufsz<fbus_control_size(m_rx_buffer)) {
-        return make_timeout_time_us(buffer_wait_time_us(fbus_control_size(m_rx_buffer)-bufsz));
-    }
+    rx_scratch_recv(fbus_control_size(m_rx_scratch));
 
     // Validate CRC
-    if (fbus_checksum(m_rx_buffer, FBUS_CONTROL_HDR_SIZE, m_rx_buffer[0])!=fbus_control_crc(m_rx_buffer)) {
+    if (fbus_checksum(m_rx_scratch, FBUS_CONTROL_HDR_SIZE, m_rx_scratch[0])!=fbus_control_crc(m_rx_scratch)) {
         begin_sync();
-        return get_absolute_time();
+        return;
     }
 
     // Process package
-    mutex_enter_blocking(&m_mutex);
+    xSemaphoreTake(m_mutex, portMAX_DELAY);
 
     static_assert(FBUS_CONTROL_8CH_SIZE+FBUS_CONTROL_HDR_SIZE+sizeof(fbus_control_8_t::crc)==sizeof(fbus_control_8_t), "Expected control size to match struct");
     static_assert(FBUS_CONTROL_16CH_SIZE+FBUS_CONTROL_HDR_SIZE+sizeof(fbus_control_16_t::crc)==sizeof(fbus_control_16_t), "Expected control size to match struct");
@@ -299,14 +296,12 @@ absolute_time_t Receiver::do_read_control()
     m_channels.set_sync(true);
     m_channels.set_seq(m_control_packets);
 
-    switch (m_rx_buffer[0]) {
+    switch (m_rx_scratch[0]) {
         case FBUS_CONTROL_8CH_SIZE:
             {
                 fbus_control_8_t control;
-                m_rx_buffer.enter_blocking();
-                m_rx_buffer.copy(reinterpret_cast<uint8_t*>(&control), sizeof(control), 0);
-                m_rx_buffer.pop(sizeof(control));
-                m_rx_buffer.exit();
+                memcpy(&control, m_rx_scratch, sizeof(control));
+                rx_scratch_pop(sizeof(control));
 
                 m_channels.set_flags(control.flags);
                 m_channels.set_rssi(control.rssi);
@@ -317,10 +312,8 @@ absolute_time_t Receiver::do_read_control()
         case FBUS_CONTROL_16CH_SIZE:
             {
                 fbus_control_16_t control;
-                m_rx_buffer.enter_blocking();
-                m_rx_buffer.copy(reinterpret_cast<uint8_t*>(&control), sizeof(control), 0);
-                m_rx_buffer.pop(sizeof(control));
-                m_rx_buffer.exit();
+                memcpy(&control, m_rx_scratch, sizeof(control));
+                rx_scratch_pop(sizeof(control));
 
                 m_channels.set_flags(control.flags);
                 m_channels.set_rssi(control.rssi);
@@ -332,10 +325,8 @@ absolute_time_t Receiver::do_read_control()
         case FBUS_CONTROL_24CH_SIZE:
             {
                 fbus_control_16_t control;
-                m_rx_buffer.enter_blocking();
-                m_rx_buffer.copy(reinterpret_cast<uint8_t*>(&control), sizeof(control), 0);
-                m_rx_buffer.pop(sizeof(control));
-                m_rx_buffer.exit();
+                memcpy(&control, m_rx_scratch, sizeof(control));
+                rx_scratch_pop(sizeof(control));
 
                 m_channels.set_flags(control.flags);
                 m_channels.set_rssi(control.rssi);
@@ -347,83 +338,68 @@ absolute_time_t Receiver::do_read_control()
             break;
         default:
             // We should never get here, but drop package, and begin resync just in case
-            mutex_exit(&m_mutex);
-            m_rx_buffer.pop_blocking(fbus_control_size(m_rx_buffer));
+            xSemaphoreGive(m_mutex);
+            rx_scratch_pop(fbus_control_size(m_rx_scratch));
             begin_sync();
-            return get_absolute_time();
+            return;
     }
 
-    mutex_exit(&m_mutex);
+    xSemaphoreGive(m_mutex);
 
     m_control_callback(m_channels);
 
     m_control_packets++;
 
     begin_read_downlink();
-    return get_absolute_time();
 }
 
 
-absolute_time_t Receiver::do_read_downlink()
+void Receiver::do_read_downlink()
 {
-    size_t bufsz = m_rx_buffer.size_blocking();
-
-    if (bufsz<FBUS_DOWNLINK_HDR_SIZE) {
-        return make_timeout_time_us(buffer_wait_time_us(FBUS_DOWNLINK_SIZE-bufsz));
-    }
-
-    if (m_rx_buffer[0]!=FBUS_DOWNLINK_HDR) {
+    // Fill buffer
+    rx_scratch_recv(FBUS_DOWNLINK_SIZE);
+    if (m_rx_scratch[0]!=FBUS_DOWNLINK_HDR) {
         begin_sync();
-        return get_absolute_time();
-    }
-
-    if (bufsz<FBUS_DOWNLINK_SIZE) {
-        return make_timeout_time_us(buffer_wait_time_us(FBUS_DOWNLINK_SIZE-bufsz));
+        return;
     }
 
     // Validate CRC
-    if (fbus_checksum(m_rx_buffer, FBUS_DOWNLINK_HDR_SIZE, m_rx_buffer[0])!=fbus_downlink_crc(m_rx_buffer)) {
+    if (fbus_checksum(m_rx_scratch, FBUS_DOWNLINK_HDR_SIZE, m_rx_scratch[0])!=fbus_downlink_crc(m_rx_scratch)) {
         begin_sync();
-        return get_absolute_time();
+        return;
     }
 
+    // Process package
     static_assert(FBUS_DOWNLINK_SIZE==sizeof(fbus_downlink_t), "Expected downlink size to match struct");
     fbus_downlink_t downlink;
-
-    m_rx_buffer.enter_blocking();
-    m_rx_buffer.copy(reinterpret_cast<uint8_t*>(&downlink), sizeof(downlink), 0);
-    m_rx_buffer.pop(FBUS_DOWNLINK_SIZE);
-    m_rx_buffer.exit();
+    memcpy(&downlink, m_rx_scratch, FBUS_DOWNLINK_SIZE);
+    rx_scratch_pop(FBUS_DOWNLINK_SIZE);
 
     // Check if we need to respond to downlink
     if (downlink.id == RECEIVER_ID && m_telemetry_provider) {
-        begin_wait_write_uplink();
-        return get_absolute_time();
+        begin_write_uplink();
+        return;
     }
 
     begin_read_uplink();
-    return get_absolute_time();
 }
 
 
-absolute_time_t Receiver::do_wait_write_uplink()
+void Receiver::do_write_uplink()
 {
-    m_rx_buffer.enter_blocking();
+    //m_rx_buffer.enter_blocking();
+    taskENTER_CRITICAL();
     absolute_time_t last_rx = m_last_rx_time;
-    m_rx_buffer.exit();
+    taskEXIT_CRITICAL();
 
     absolute_time_t now = get_absolute_time();
     int64_t diff = absolute_time_diff_us(last_rx, now);
 
-    if (diff < FBUS_UPLINK_SEND_DELAY_MIN_US) {
-        // Give the receiver time to start reading
-        return delayed_by_us(last_rx, FBUS_UPLINK_SEND_DELAY_MIN_US);
-    }
     if (diff > FBUS_UPLINK_SEND_DELAY_MAX_US) {
         // We missed the send window
         m_telemetry_skipped++;
         begin_read_uplink();
-        return now;
+        return;
     }
 
     Telemetry event = m_telemetry_provider->get_next_telemetry();
@@ -440,104 +416,68 @@ absolute_time_t Receiver::do_wait_write_uplink()
     uplink.crc = fbus_checksum(uplink_ptr, FBUS_UPLINK_HDR_SIZE, uplink.size);
 
     //printf("Uplink: - %02x   %08x   - %lld\n", uplink.app_id, uplink.data, diff);
-
-    m_tx_buffer.enter_blocking();
-    m_tx_buffer.push(uplink_ptr, sizeof(uplink));
-    m_tx_buffer.exit();
-    start_tx();
+    tx_send(uplink_ptr, sizeof(uplink));
 
     m_telemetry_sent++;
 
-    begin_write_uplink();
-
-    return make_timeout_time_us(buffer_wait_time_us(sizeof(fbus_uplink_t)));
-}
-
-
-absolute_time_t Receiver::do_write_uplink()
-{
-    if (!m_tx_buffer.empty()) {
-        // We still have bytes to send, delay by the time it takes to send 10 bytes
-        return make_timeout_time_us(buffer_wait_time_us(4));
-    }
-    if (uart_get_hw(m_uart)->fr & UART_UARTFR_BUSY_BITS) {
-        // UART is still transmitting
-        return make_timeout_time_us(buffer_wait_time_us(4));
-    }
-
     begin_read_uplink();
-    return get_absolute_time();
 }
 
 
-absolute_time_t Receiver::do_read_uplink()
+void Receiver::do_read_uplink()
 {
-    size_t bufsz = m_rx_buffer.size_blocking();
-
-    auto wait_time = absolute_time_diff_us(m_last_rx_time, get_absolute_time());
-
-    if (bufsz==0 && wait_time > FBUS_UPLINK_SEND_TIMEOUT_US) {
-        // No uplink is comming
-        begin_read_control();
-        return get_absolute_time();
-    }
-
-    if (bufsz<FBUS_UPLINK_HDR) {
-        return make_timeout_time_us(buffer_wait_time_us(FBUS_UPLINK_SIZE-bufsz));
-    }
-
-    if (m_rx_buffer[0]!=FBUS_UPLINK_HDR) {
+    // Fill buffer
+    rx_scratch_recv(FBUS_UPLINK_HDR_SIZE);
+    if (m_rx_scratch[0]!=FBUS_UPLINK_HDR) {
         // No uplink
         begin_read_control();
-        return get_absolute_time();
+        return;
     }
-
-    if (bufsz<FBUS_UPLINK_SIZE) {
-        return make_timeout_time_us(buffer_wait_time_us(FBUS_UPLINK_SIZE-bufsz));
-    }
+    rx_scratch_recv(FBUS_UPLINK_SIZE);
 
     // Validate CRC
-    if (fbus_checksum(m_rx_buffer, FBUS_UPLINK_HDR_SIZE, m_rx_buffer[0])!=fbus_uplink_crc(m_rx_buffer)) {
+    if (fbus_checksum(m_rx_scratch, FBUS_UPLINK_HDR_SIZE, m_rx_scratch[0])!=fbus_uplink_crc(m_rx_scratch)) {
         begin_sync();
-        return get_absolute_time();
+        return;
     }
 
-    m_rx_buffer.pop_blocking(FBUS_UPLINK_SIZE);
+    rx_scratch_pop(FBUS_UPLINK_SIZE);
 
     begin_read_control();
-    return make_timeout_time_us(FBUS_UPLINK_POST_DELAY_US);
 }
 
 
-
-absolute_time_t Receiver::update() 
+void Receiver::run()
 {
-    absolute_time_t next;
+    init_isr();
 
-    switch (m_state) {
-        case State::SYNCING:
-            next = do_sync();
-            break;
-        case State::READ_CONTROL:
-            next = do_read_control();
-            break;
-        case State::READ_DOWNLINK:
-            next = do_read_downlink();
-            break;
-        case State::WAIT_WRITE_UPLINK:
-            next = do_wait_write_uplink();
-            break;
-        case State::WRITE_UPLINK:
-            next = do_write_uplink();
-            break;
-        case State::READ_UPLINK:
-            next = do_read_uplink();
-            break;
-        default:
-            next = make_timeout_time_ms(1000);
-    }    
+    // Allow task to run on all cores after we have setup interrupt handler
+    vTaskCoreAffinitySet(nullptr, 0b11);
 
-    return next;
+    printf("Receiver task running\n");
+
+    while (true) {
+        switch (m_state) {
+            case State::SYNCING:
+                do_sync();
+                break;
+            case State::READ_CONTROL:
+                do_read_control();
+                break;
+            case State::READ_DOWNLINK:
+                do_read_downlink();
+                break;
+            case State::WRITE_UPLINK:
+                do_write_uplink();
+                break;
+            case State::READ_UPLINK:
+                do_read_uplink();
+                break;
+            default:
+                assert(false);
+                vTaskDelay(pdMS_TO_TICKS(10));
+        }    
+    }
 }
 
 

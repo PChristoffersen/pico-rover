@@ -11,8 +11,8 @@
 #include <array>
 #include <functional>
 #include <pico/stdlib.h>
-#include <pico/mutex.h>
 #include <hardware/pio.h>
+#include <rtos.h>
 
 #include <boardconfig.h>
 #include <util/locking.h>
@@ -35,18 +35,17 @@ namespace Motor {
 
             void init();
 
-            static absolute_time_t update();
-
-            value_type get() const { MUTEX_GUARD(m_mutex); return m_value; }
-            rpm_type rpm() const { MUTEX_GUARD(m_mutex); return m_rpm; }
+            value_type get() const { SEMAPHORE_GUARD(m_mutex); return m_value; }
+            rpm_type rpm() const { SEMAPHORE_GUARD(m_mutex); return m_rpm; }
 
             void add_callback(callback_type::call_type cb) { m_callback.add(cb); }
 
         private:
             using array_type = std::array<Encoder*, NUM_PIO_STATE_MACHINES>;
 
+            static constexpr uint TASK_STACK_SIZE { configMINIMAL_STACK_SIZE };
+            static constexpr uint32_t UPDATE_INTERVAL_MS { 50UL };
             static constexpr uint MAX_STEP_RATE { 100000u };
-            static constexpr int64_t UPDATE_INTERVAL { 50000 };
             static constexpr rpm_type SHAFT_CPR { MOTOR_SHAFT_CPR };
             static constexpr rpm_type WHEEL_RATIO { MOTOR_GEAR_RATIO };
 
@@ -56,7 +55,8 @@ namespace Motor {
             const bool m_invert;
             uint m_sm;
 
-            mutable mutex_t m_mutex;
+            StaticSemaphore_t m_mutex_buf;
+            mutable SemaphoreHandle_t m_mutex;
             absolute_time_t m_value_last;
             value_type m_value;
             rpm_type m_rpm;
@@ -71,7 +71,12 @@ namespace Motor {
             static array_type m_encoders;
             static absolute_time_t m_last_update;
 
+            static StaticTask_t m_task_buf;
+            static StackType_t m_task_stack[TASK_STACK_SIZE];
+            static TaskHandle_t m_task;
+
             static void global_init();
+            static void global_run();
     };
 
 }

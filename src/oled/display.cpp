@@ -191,16 +191,5 @@ void Display::update_blocking()
     m_framebuffer.clear_dirty();
 }
 
-bool Display::update_block_until(absolute_time_t until)
-{
-    if (!m_framebuffer.is_dirty() || !m_present) 
-        return true;
-    if (!i2c_bus_acquire_block_until(until)) 
-        return false;
-    send_data_async();
-    m_framebuffer.clear_dirty();
-    return true;
-}
-
 
 }

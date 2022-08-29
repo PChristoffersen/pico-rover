@@ -60,8 +60,6 @@ void Robot::init()
         motor.init();
     }
 
-    printf("Init --------- 1\n");
-
     m_led_strip.init();
     m_sys_sensor.init();
     m_battery_sensor.init();
@@ -76,6 +74,7 @@ void Robot::init()
     m_telemetry_provider.init();
     m_receiver.set_telemetry_provider(&m_telemetry_provider);
 
+    #if 0
     printf("Init --------- 3\n");
 
     // Register callbacks
@@ -99,17 +98,11 @@ void Robot::init()
     m_armed_callback.add([this](auto armed){
         m_display_render.update_armed(armed);
     });
+
+    #endif
 }
 
 
-
-void Robot::term()
-{
-    m_display_render.off();
-    m_led_strip.fill(LED::Color::BLACK);
-    m_led_strip.show();
-    m_led_builtin.off();
-}
 
 
 void Robot::set_armed(bool armed) 

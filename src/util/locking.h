@@ -12,6 +12,22 @@
 #include <pico/stdlib.h>
 #include <pico/mutex.h>
 #include <pico/critical_section.h>
+#include <rtos.h>
+
+class semaphore_guard_t {
+    public:
+        semaphore_guard_t(SemaphoreHandle_t sem) : m_sem { sem } 
+        { 
+            xSemaphoreTake(m_sem, portMAX_DELAY);
+        }
+        ~semaphore_guard_t() {
+            xSemaphoreGive(m_sem);
+        }
+    private:
+        SemaphoreHandle_t m_sem;
+};
+#define SEMAPHORE_GUARD(sem) semaphore_guard_t _guard(sem);
+
 
 class mutex_guard_t {
     public:

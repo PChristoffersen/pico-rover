@@ -7,30 +7,34 @@ ReceiverListener::ReceiverListener()
 {
 }
 
+
+void ReceiverListener::run()
+{
+    while (true) {
+        auto res = xMessageBufferReceive(m_buffer, &m_channels, sizeof(m_channels), portMAX_DELAY);
+        if (res!=sizeof(channels_type)) {
+            xMessageBufferReset(m_buffer);
+            continue;
+        }
+
+        m_mapping.set(m_channels);
+        m_callback(m_channels, m_mapping);
+    }
+}
+
+
 void ReceiverListener::init(Receiver &receiver)
 {
-    queue_init(&m_queue, sizeof(Channels), QUEUE_SIZE);
+    m_buffer = xMessageBufferCreateStatic(sizeof(m_buffer_data), m_buffer_data, &m_buffer_buf);
+    assert(m_buffer);
 
-    m_last_event = make_timeout_time_us(POLL_INTERVAL);
+    m_task = xTaskCreateStatic([](auto args){ reinterpret_cast<ReceiverListener*>(args)->run(); }, "RCListener", TASK_STACK_SIZE, this, RECEIVERLISTENER_TASK_PRIORITY, m_task_stack, &m_task_buf);
+    assert(m_task);
 
     receiver.add_callback([this](auto channels) {
-        queue_try_add(&m_queue, &channels);
+        xMessageBufferSend(m_buffer, &channels, sizeof(channels), 0);
     });
 
 }
-
-
-absolute_time_t ReceiverListener::update()
-{
-    if (absolute_time_diff_us(m_last_event, get_absolute_time())>POLL_INTERVAL) {
-        if (queue_try_remove(&m_queue, &m_channels)) {
-            m_mapping.set(m_channels);
-            m_callback(m_channels, m_mapping);
-        }
-        m_last_event = delayed_by_us(m_last_event, POLL_INTERVAL);
-    }
-    return delayed_by_us(m_last_event, POLL_INTERVAL);
-}
-
 
 }

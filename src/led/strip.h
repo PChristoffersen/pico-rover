@@ -14,6 +14,7 @@
 #include <pico/sem.h>
 #include <hardware/pio.h>
 #include <hardware/dma.h>
+#include <rtos.h>
 
 #include "color.h"
 
@@ -47,7 +48,8 @@ namespace LED {
             volatile void *m_dma_addr;
 
             alarm_id_t m_reset_alarm;
-            semaphore_t m_reset_sem;
+            StaticSemaphore_t m_reset_sem_buf;
+            SemaphoreHandle_t m_reset_sem;
 
             // Global
             static uint m_dma_irq_index;

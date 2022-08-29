@@ -14,7 +14,6 @@
 namespace Motor {
 
 float DCMotor::m_supply_voltage = battery_max();
-critical_section_t DCMotor::m_global_lock;
 uint DCMotor::m_enable_count = 0u;
 bool DCMotor::m_global_enabled = false;
 
@@ -29,6 +28,9 @@ DCMotor::DCMotor(id_type id, uint in1_pin, uint in2_pin, PIO enc_pio, uint enca_
     m_duty { 0.0f },
     m_encoder { id, enc_pio, enca_pin, encb_pin, invert }
 {
+    m_mutex = xSemaphoreCreateBinaryStatic(&m_mutex_buf);
+    assert(m_mutex);
+    xSemaphoreGive(m_mutex);
 }
 
 
@@ -38,7 +40,6 @@ void DCMotor::global_init()
     if (initialized)
         return;
 
-    critical_section_init(&m_global_lock);
     m_enable_count = 0;
 
     gpio_init(MOTOR_ENABLE_PIN);
@@ -51,7 +52,7 @@ void DCMotor::global_init()
 
 void DCMotor::global_enable(bool enable)
 {
-    critical_section_enter_blocking(&m_global_lock);
+    taskENTER_CRITICAL();
     if (enable) {
         m_enable_count++;
         if (m_global_enabled) {
@@ -65,13 +66,13 @@ void DCMotor::global_enable(bool enable)
             gpio_put(MOTOR_ENABLE_PIN, false);
         }
     }
-    critical_section_exit(&m_global_lock);
+    taskEXIT_CRITICAL();
 }
 
 
 void DCMotor::set_global_enable(bool enable) 
 {
-    critical_section_enter_blocking(&m_global_lock);
+    taskENTER_CRITICAL();
     if (enable!=m_global_enabled) {
         m_global_enabled = enable;
         if (m_enable_count>0) {
@@ -83,15 +84,12 @@ void DCMotor::set_global_enable(bool enable)
             }
         }
     }
-    critical_section_exit(&m_global_lock);
-
+    taskEXIT_CRITICAL();
 }
 
 
 void DCMotor::init()
 {
-    mutex_init(&m_mutex);
-
     global_init();
 
     float div = clock_get_hz(clk_sys)/PWM_FREQUENCY/PWM_WRAP;
@@ -124,9 +122,9 @@ void DCMotor::init()
 void DCMotor::update_duty()
 {
     // Calculate PWM level based on supply voltage and requested duty
-    critical_section_enter_blocking(&m_global_lock);
+    taskENTER_CRITICAL();
     int pwm = m_duty*PWM_WRAP*VOLTAGE_TARGET/m_supply_voltage;
-    critical_section_exit(&m_global_lock);
+    taskEXIT_CRITICAL();
 
     if constexpr (DRIVER_MODE==DriverMode::IN_IN) {
         // IN/IN Mode - in1 and in2 functions as described in https://www.pololu.com/product/4036
@@ -164,7 +162,7 @@ void DCMotor::update_duty()
 
 void DCMotor::set_enabled(bool enabled)
 {
-    MUTEX_GUARD(m_mutex);
+    SEMAPHORE_GUARD(m_mutex);
 
     if (m_enabled==enabled) 
         return;
@@ -190,7 +188,7 @@ void DCMotor::set_enabled(bool enabled)
 
 void DCMotor::set_duty(duty_type duty)
 {
-    MUTEX_GUARD(m_mutex);
+    SEMAPHORE_GUARD(m_mutex);
 
     duty = std::clamp(duty, -1.0f, 1.0f);
     if (m_invert) {
@@ -212,9 +210,10 @@ void DCMotor::set_supply_voltage(float voltage)
 {
     constexpr auto vmin { battery_min() };
     constexpr auto vmax { battery_max() };
-    critical_section_enter_blocking(&m_global_lock);
+    
+    taskENTER_CRITICAL();
     m_supply_voltage = std::clamp(voltage, vmin, vmax);
-    critical_section_exit(&m_global_lock);
+    taskEXIT_CRITICAL();
 }
 
 

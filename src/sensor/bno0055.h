@@ -35,21 +35,21 @@ namespace Sensor {
             uint16_t sw_rev() const { return m_sw_rev; }
             uint8_t bl_rev() const { return m_bl_rev; }
 
-            euler_type heading() const { MUTEX_GUARD(m_mutex); return m_heading; }
-            euler_type pitch() const   { MUTEX_GUARD(m_mutex); return m_pitch; }
-            euler_type roll() const    { MUTEX_GUARD(m_mutex); return m_roll; }
+            euler_type heading() const { SEMAPHORE_GUARD(m_sem); return m_heading; }
+            euler_type pitch() const   { SEMAPHORE_GUARD(m_sem); return m_pitch; }
+            euler_type roll() const    { SEMAPHORE_GUARD(m_sem); return m_roll; }
 
-            absolute_time_t update();
-        
             #ifndef NDEBUG
             void print() const;
             #endif
 
         private:
+            static constexpr uint    TASK_STACK_SIZE    { configMINIMAL_STACK_SIZE };
+            static constexpr int64_t UPDATE_INTERVAL_MS { 25u };
+            static constexpr int64_t CALI_INTERVAL_MS { 500ll };
+
             static constexpr uint32_t RESET_DELAY_MS { 650 };
             static constexpr int64_t MAX_RESET_TIME_US { 800000ll };
-            static constexpr int64_t INTERVAL { 25000 };
-            static constexpr int64_t CALI_INTERVAL { 500000ll };
 
             const addr_type m_address;
             bool m_present;
@@ -62,13 +62,16 @@ namespace Sensor {
             uint8_t m_accel_calib;
             uint8_t m_gyro_calib;
 
-            mutable mutex_t m_mutex;
+            StaticSemaphore_t m_sem_buf;
+            SemaphoreHandle_t m_sem;
+
+            StaticTask_t m_task_buf;
+            StackType_t  m_task_stack[TASK_STACK_SIZE];
+            TaskHandle_t m_task;
+
             euler_type m_heading;
             euler_type m_pitch;
             euler_type m_roll;
-
-            absolute_time_t m_last_update;
-            absolute_time_t m_last_cali_update;
 
             inline bool write_reg8(uint8_t reg, uint8_t value);
             bool read_reg8(uint8_t reg, uint8_t &value);
@@ -78,6 +81,8 @@ namespace Sensor {
             void write_page_id(uint8_t page_id);
 
             void update_calib();
+
+            inline void run();
     };
 
 }

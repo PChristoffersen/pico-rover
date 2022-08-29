@@ -2,9 +2,11 @@
 
 #include <stdio.h>
 #include <pico/stdlib.h>
-#include <pico/sem.h>
 #include <hardware/i2c.h>
 #include <hardware/dma.h>
+
+#include <FreeRTOS.h>
+#include <semphr.h>
 
 #include "boardconfig.h"
 
@@ -16,13 +18,15 @@ static constexpr bool I2C_DMA_IRQ_SHARED   = true;
 static constexpr uint I2C_DMA_IRQ_PRIORITY = 0;
 
 
-static struct semaphore g_bus_sem;
+//static struct semaphore g_bus_sem;
 static uint g_bus_dma = 0;
 static uint g_bus_dma_irq_index = 0;
 static dma_channel_config g_bus_dma_config;
 static volatile uint16_t g_bus_dma_buffer[DMA_BUFFER_SIZE];
 static size_t g_bus_dma_pos = 0;
 
+static SemaphoreHandle_t g_bus_sem = nullptr;
+static StaticSemaphore_t g_bus_sem_buf;
 
 // DMA transfer of pixel data is complete
 static void __isr _dma_complete_handler()
@@ -40,25 +44,26 @@ static void __isr _i2c_handler()
     if (i2c_get_hw(i2c_default)->intr_stat & I2C_IC_RAW_INTR_STAT_TX_EMPTY_BITS) {
         i2c_get_hw(i2c_default)->intr_mask = 0u; // Mask all interrupts
         irq_set_enabled(I2C0_IRQ, false);
-        i2c_bus_release();
+        xSemaphoreGiveFromISR(g_bus_sem, nullptr);
     }
     if (i2c_get_hw(i2c_default)->intr_stat & I2C_IC_INTR_STAT_R_TX_ABRT_BITS) {
         i2c_get_hw(i2c_default)->clr_tx_abrt;    // Clear abort flag
         i2c_get_hw(i2c_default)->intr_mask = 0u; // Mask all interrupts
         irq_set_enabled(I2C0_IRQ, false);
-        i2c_bus_release();
+        xSemaphoreGiveFromISR(g_bus_sem, nullptr);
     }
 }
 
 
 void i2c_bus_init()
 {
+    g_bus_sem = xSemaphoreCreateBinaryStatic(&g_bus_sem_buf);
+    configASSERT(g_bus_sem);
+    xSemaphoreGive(g_bus_sem);
+
     gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
     i2c_init(i2c_default, BOARD_I2C_SPEED);
-
-    sem_init(&g_bus_sem, 1, 1);
-
 
     g_bus_dma = dma_claim_unused_channel(true);
 
@@ -77,7 +82,7 @@ void i2c_bus_init()
                           false);
 
 
-    if (I2C_DMA_IRQ == DMA_IRQ_0) {
+    if constexpr (I2C_DMA_IRQ == DMA_IRQ_0) {
         dma_channel_set_irq0_enabled(g_bus_dma, true);
         g_bus_dma_irq_index = 0;
     }
@@ -86,7 +91,7 @@ void i2c_bus_init()
         g_bus_dma_irq_index = 1;
     }
 
-    if (I2C_DMA_IRQ_SHARED) {
+    if constexpr (I2C_DMA_IRQ_SHARED) {
         irq_add_shared_handler(I2C_DMA_IRQ, _dma_complete_handler, I2C_DMA_IRQ_PRIORITY);
     }
     else {
@@ -102,31 +107,26 @@ void i2c_bus_init()
 
 void i2c_bus_acquire_blocking()
 {
-    sem_acquire_blocking(&g_bus_sem);
+    auto res = xSemaphoreTake(g_bus_sem, portMAX_DELAY);
+    configASSERT(res==pdTRUE);
 }
 
 
-bool i2c_bus_acquire_block_until(absolute_time_t until)
+bool i2c_bus_acquire_timeout_ms(uint32_t timeout_ms)
 {
-    return sem_acquire_block_until(&g_bus_sem, until);
-}
-
-
-bool i2c_bus_acquire_timeout_us(uint32_t timeout_us)
-{
-    return sem_acquire_timeout_us(&g_bus_sem, timeout_us);
+    return xSemaphoreTake(g_bus_sem, pdMS_TO_TICKS(timeout_ms)) == pdTRUE;
 }
 
 
 bool i2c_bus_try_acquire()
 {
-    return sem_try_acquire(&g_bus_sem);
+    return xSemaphoreTake(g_bus_sem, 0) == pdTRUE;
 }
 
 
 void i2c_bus_release()
 {
-    sem_release(&g_bus_sem);
+    xSemaphoreGive(g_bus_sem);
 }
 
 

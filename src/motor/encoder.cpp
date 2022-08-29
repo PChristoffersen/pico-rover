@@ -14,6 +14,10 @@ uint Encoder::m_program_offset = 0;
 Encoder::array_type Encoder::m_encoders;
 absolute_time_t ABSOLUTE_TIME_INITIALIZED_VAR(Encoder::m_last_update, 0);
 
+StaticTask_t Encoder::m_task_buf;
+StackType_t Encoder::m_task_stack[TASK_STACK_SIZE];
+TaskHandle_t Encoder::m_task = nullptr;
+
 
 void Encoder::global_init() 
 {
@@ -24,6 +28,8 @@ void Encoder::global_init()
     m_program_offset = pio_add_program(m_pio, &quadrature_encoder_program);
 
     m_last_update = get_absolute_time();
+
+    m_task = xTaskCreateStatic([](auto args){ Encoder::global_run(); }, "Encoder", TASK_STACK_SIZE, nullptr, ENCODER_TASK_PRIORITY, m_task_stack, &m_task_buf);
 
     initialized = true;
 }
@@ -42,7 +48,9 @@ Encoder::Encoder(id_type id, PIO pio, uint enca_pin, uint encb_pin, bool invert)
     if (m_pio==nullptr) {
         m_pio = pio;
     }
-    mutex_init(&m_mutex);
+    m_mutex = xSemaphoreCreateBinaryStatic(&m_mutex_buf);
+    assert(m_mutex);
+    xSemaphoreGive(m_mutex);
 }
 
 void Encoder::init()
@@ -91,10 +99,10 @@ inline void Encoder::do_fetch()
         rpm = (rpm+m_rpm)/2.0;
     }
 
-    mutex_enter_blocking(&m_mutex);
+    xSemaphoreTake(m_mutex, portMAX_DELAY);
     m_rpm = rpm;
     m_value = value;
-    mutex_exit(&m_mutex);
+    xSemaphoreGive(m_mutex);
 
     m_callback(m_value, m_rpm);
 
@@ -110,9 +118,11 @@ inline void Encoder::do_fetch()
 
 
 
-absolute_time_t Encoder::update()
+void Encoder::global_run()
 {
-    if (absolute_time_diff_us(m_last_update, get_absolute_time())>UPDATE_INTERVAL) {
+    TickType_t last_time = xTaskGetTickCount();
+
+    while (true) {
         for (auto &encoder : m_encoders) {
             if (encoder!=nullptr) {
                 encoder->fetch_request();
@@ -123,20 +133,10 @@ absolute_time_t Encoder::update()
                 encoder->do_fetch();
             }
         }
-        m_last_update = delayed_by_us(m_last_update, UPDATE_INTERVAL);
+
+        xTaskDelayUntil(&last_time, pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
     }
-
-    return delayed_by_us(m_last_update, UPDATE_INTERVAL);
 }
-
-#if 0
-void Encoder::begin()
-{
-    global_begin();
-    pio_set_irqn_source_enabled(m_pio, get_core_num(), static_cast<pio_interrupt_source>(pis_sm0_rx_fifo_not_empty+m_sm), true);
-
-}
-#endif
 
 
 }

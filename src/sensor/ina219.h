@@ -39,22 +39,27 @@ namespace Sensor {
 
             absolute_time_t update();
 
-            float get_shunt_voltage() const { MUTEX_GUARD(m_mutex); return m_shunt_v; }
-            float get_bus_voltage() const   { MUTEX_GUARD(m_mutex); return m_bus_v; }
-            float get_current() const       { MUTEX_GUARD(m_mutex); return m_current; }
-            float get_power() const         { MUTEX_GUARD(m_mutex); return m_power; }
+            float get_shunt_voltage() const { SEMAPHORE_GUARD(m_sem); return m_shunt_v; }
+            float get_bus_voltage() const   { SEMAPHORE_GUARD(m_sem); return m_bus_v; }
+            float get_current() const       { SEMAPHORE_GUARD(m_sem); return m_current; }
+            float get_power() const         { SEMAPHORE_GUARD(m_sem); return m_power; }
 
             void add_callback(callback_type::call_type cb) { m_callback.add(cb); }
 
         private:
-            static constexpr int64_t UPDATE_INTERVAL = 250000; // 250ms
-            static constexpr float SHUNT_RESISTOR = 0.1f; // 0.1 Ohm shunt resistor
+            static constexpr uint    TASK_STACK_SIZE    { configMINIMAL_STACK_SIZE };
+            static constexpr int64_t UPDATE_INTERVAL_MS { 250u };
+            static constexpr float SHUNT_RESISTOR       { 0.1f }; // 0.1 Ohm shunt resistor
 
             const addr_type m_address;
             bool m_present;
 
-            absolute_time_t m_last_update;
-            mutable mutex_t m_mutex;
+            StaticSemaphore_t m_sem_buf;
+            SemaphoreHandle_t m_sem;
+
+            StaticTask_t m_task_buf;
+            StackType_t  m_task_stack[TASK_STACK_SIZE];
+            TaskHandle_t m_task;
 
             // Readings
             float m_shunt_v;
@@ -66,6 +71,8 @@ namespace Sensor {
 
             bool write_reg(uint8_t reg, uint16_t value);
             bool read_reg(uint8_t reg, uint16_t &value);
+
+            inline void run();
     };
 
 }

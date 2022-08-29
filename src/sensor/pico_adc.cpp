@@ -18,11 +18,40 @@ PicoADC::PicoADC(uint battery_pin, float battery_r1, float battery_r2) :
     m_battery_r1 { battery_r1 },
     m_battery_r2 { battery_r2 },
 
+    m_sem { nullptr },
+
     m_battery_voltage { 0.0f },
     m_vsys_voltage { 0.0f },
     m_temp { 0.0f }
 {
-    mutex_init(&m_mutex);
+    m_sem = xSemaphoreCreateMutexStatic(&m_sem_buf);
+    assert(m_sem);
+    xSemaphoreGive(m_sem);
+}
+
+
+
+inline void PicoADC::run()
+{
+    TickType_t last_time = xTaskGetTickCount();
+
+    while (true) {
+        auto input = adc_get_selected_input();
+        auto result = adc_read();
+        float adc_voltage =  (ADC_REF * result) / ADC_RESOLUTION;
+
+        if (input==_adc_from_pin(m_battery_pin)) {
+            _handle_battery(adc_voltage);
+        }
+        else if (input==_adc_from_pin(VSYS_PIN)) {
+            _handle_vsys(adc_voltage);
+        }
+        else if (input==TEMP_ADC) {
+            _handle_temp(adc_voltage);
+        }
+
+        xTaskDelayUntil(&last_time, pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
+    }
 }
 
 
@@ -38,34 +67,10 @@ void PicoADC::init()
     adc_select_input(_adc_from_pin(m_battery_pin));
     adc_set_round_robin((1<<_adc_from_pin(m_battery_pin))|(1<<_adc_from_pin(VSYS_PIN))|(1<<TEMP_ADC));
 
-    m_last_update = make_timeout_time_us(UPDATE_INTERVAL/2);
+    m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<PicoADC*>(arg)->run(); }, "PicoADC", TASK_STACK_SIZE, this, ADC_TASK_PRIORITY, m_task_stack, &m_task_buf);
+    assert(m_task);
 }
 
-
-absolute_time_t PicoADC::update()
-{
-    auto now = get_absolute_time();
-
-    if (absolute_time_diff_us(m_last_update, now) >= UPDATE_INTERVAL) {
-        auto input = adc_get_selected_input();
-        auto result = adc_read();
-        float adc_voltage =  (ADC_REF * result) / ADC_RESOLUTION;
-
-        if (input==_adc_from_pin(m_battery_pin)) {
-            _handle_battery(adc_voltage);
-        }
-        else if (input==_adc_from_pin(VSYS_PIN)) {
-            _handle_vsys(adc_voltage);
-        }
-        else if (input==TEMP_ADC) {
-            _handle_temp(adc_voltage);
-        }
-
-        m_last_update = delayed_by_us(m_last_update, UPDATE_INTERVAL);
-    }
-
-    return delayed_by_us(m_last_update, UPDATE_INTERVAL);
-}
 
 
 void PicoADC::_handle_battery(float adc_voltage)
@@ -77,9 +82,9 @@ void PicoADC::_handle_battery(float adc_voltage)
     //printf("Battery: %f V  (%f)\n", voltage, adc_voltage);
 
     // Store value
-    mutex_enter_blocking(&m_mutex);
+    xSemaphoreTake(m_sem, portMAX_DELAY);
     m_battery_voltage = voltage;
-    mutex_exit(&m_mutex);
+    xSemaphoreGive(m_sem);
 
     m_battery_cb(voltage);
 }
@@ -88,12 +93,12 @@ void PicoADC::_handle_battery(float adc_voltage)
 void PicoADC::_handle_vsys(float adc_voltage)
 {
     float voltage = adc_voltage * (VSYS_R1+VSYS_R2) / VSYS_R2; 
-    //printf("VSys: %f V\n", vsys_voltage);
+    //printf("VSys: %f V\n", voltage);
 
     // Store value
-    mutex_enter_blocking(&m_mutex);
+    xSemaphoreTake(m_sem, portMAX_DELAY);
     m_vsys_voltage = voltage;
-    mutex_exit(&m_mutex);
+    xSemaphoreGive(m_sem);
 
     m_vsys_cb(voltage);
 }
@@ -104,9 +109,9 @@ void PicoADC::_handle_temp(float adc_voltage)
     //printf("Temp: %.1f C\n", tempC);
 
     // Store value
-    mutex_enter_blocking(&m_mutex);
+    xSemaphoreTake(m_sem, portMAX_DELAY);
     m_temp = tempC;
-    mutex_exit(&m_mutex);
+    xSemaphoreGive(m_sem);
 
     m_temp_cb(tempC);
 }

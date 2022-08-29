@@ -56,6 +56,7 @@ Radio::FrSky::Telemetry TelemetryProvider::get_next_telemetry()
 {
     m_count++;
 
+
     auto prim = m_primary++;
     switch (prim) {
         case 0:

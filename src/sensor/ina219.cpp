@@ -79,13 +79,17 @@ static inline bool _ina219_overflow(uint16_t value)
 INA219::INA219(Address addr) :
     m_address { static_cast<addr_type>(addr) },
     m_present { false },
+    m_task { nullptr },
     m_shunt_v { 0.0f },
     m_bus_v { 0.0f },
     m_current { 0.0f },
     m_power { 0.0f }
 {
-    mutex_init(&m_mutex);
+    m_sem = xSemaphoreCreateMutexStatic(&m_sem_buf);
+    assert(m_sem);
+    xSemaphoreGive(m_sem);
 }
+
 
 bool INA219::write_reg(uint8_t reg, uint16_t value)
 {
@@ -108,6 +112,44 @@ bool INA219::read_reg(uint8_t reg, uint16_t &value)
     if (res<=0) return false;
     value = static_cast<uint16_t>(rval[0]<<8) | (rval[1]);
     return true;
+}
+
+
+
+inline void INA219::run()
+{
+    TickType_t last_time = xTaskGetTickCount();
+    uint16_t shunt_reg;
+    uint16_t bus_reg;
+
+    while (true) {
+        i2c_bus_acquire_blocking();
+        read_reg(INA219_REG_SHUNTVOLTAGE, shunt_reg);
+        read_reg(INA219_REG_BUSVOLTAGE, bus_reg);
+        i2c_bus_release();
+
+
+        // Calculate
+        xSemaphoreTake(m_sem, portMAX_DELAY);
+        m_shunt_v = static_cast<int16_t>((int16_t)((~shunt_reg) + 1) * -1) * 0.01f;  // Shunt voltage is 10 uV per bit
+        m_bus_v = _ina219_bus_voltage(bus_reg) * 4 * 0.001f; // Bus voltage is 4 mV per bit
+        m_current = m_shunt_v / SHUNT_RESISTOR;
+        m_power = m_current * m_bus_v;
+        xSemaphoreGive(m_sem);
+
+        #if 0
+        printf("Shunt voltage : %f V\n", m_shunt_v);
+        printf("  Bus voltage : %f V\n", m_bus_v);
+        printf("      Current : %f mA\n", m_current);
+        printf("        Power : %f mW\n", m_power);
+        printf("\n");
+        #endif
+
+        m_callback(m_bus_v, m_current, m_power);
+
+
+        xTaskDelayUntil(&last_time, pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
+    }
 }
 
 
@@ -137,55 +179,13 @@ void INA219::init()
 
     write_reg(INA219_REG_CONFIG, config);
 
-    m_last_update = get_absolute_time();
+    m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<INA219*>(arg)->run(); }, "INA219", TASK_STACK_SIZE, this, INA_TASK_PRIORITY, m_task_stack, &m_task_buf);
+    assert(m_task);
+
 
     i2c_bus_release();
 }
 
-
-absolute_time_t INA219::update()
-{
-    if (!m_present) {
-        return make_timeout_time_ms(60000);
-    }
-    auto now = get_absolute_time();
-    if (absolute_time_diff_us(m_last_update, now)>UPDATE_INTERVAL) {
-        if (!i2c_bus_try_acquire()) {
-            return delayed_by_us(now, 100);
-        }
-
-
-        uint16_t shunt_reg;
-        uint16_t bus_reg;
-
-        if (!read_reg(INA219_REG_SHUNTVOLTAGE, shunt_reg)) goto bail;
-        if (!read_reg(INA219_REG_BUSVOLTAGE, bus_reg)) goto bail;
-
-
-        // Calculate
-        mutex_enter_blocking(&m_mutex);
-        m_shunt_v = static_cast<int16_t>((int16_t)((~shunt_reg) + 1) * -1) * 0.01f;  // Shunt voltage is 10 uV per bit
-        m_bus_v = _ina219_bus_voltage(bus_reg) * 4 * 0.001f; // Bus voltage is 4 mV per bit
-        m_current = m_shunt_v / SHUNT_RESISTOR;
-        m_power = m_current * m_bus_v;
-        mutex_exit(&m_mutex);
-
-        #if 0
-        printf("Shunt voltage : %f V\n", m_shunt_v);
-        printf("  Bus voltage : %f V\n", m_bus_v);
-        printf("      Current : %f mA\n", m_current);
-        printf("        Power : %f mW\n", m_power);
-        printf("\n");
-        #endif
-
-        m_callback(m_bus_v, m_current, m_power);
-
-      bail:
-        i2c_bus_release();
-        m_last_update = delayed_by_us(m_last_update, UPDATE_INTERVAL);
-    }
-    return delayed_by_us(m_last_update, UPDATE_INTERVAL);
-}
 
 
 }

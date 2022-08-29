@@ -30,7 +30,6 @@ void __isr StripBase::dma_complete_handler()
         if (strip && dma_irqn_get_channel_status(m_dma_irq_index, strip->m_dma)) {
             dma_irqn_acknowledge_channel(m_dma_irq_index, strip->m_dma);
 
-            assert(sem_available(&strip->m_reset_sem)==0);
             assert(strip->m_reset_alarm==0);
             if (strip->m_reset_alarm) {
                 cancel_alarm(strip->m_reset_alarm);
@@ -38,15 +37,14 @@ void __isr StripBase::dma_complete_handler()
             // Alarm callback triggered when the reset period of the LED strip has passed, and it is safe to start sending pixel data again
             strip->m_reset_alarm = add_alarm_in_us(STRIP_RESET_DELAY_US, +[](alarm_id_t id, void *user_data) -> int64_t {
                 StripBase *strip = (StripBase*)user_data;
-                assert(sem_available(&strip->m_reset_sem)==0);
                 strip->m_reset_alarm = 0;
-                sem_release(&strip->m_reset_sem);
+                xSemaphoreGiveFromISR(strip->m_reset_sem, nullptr);
                 return 0;
             }, strip, true);
             if (strip->m_reset_alarm<0) {
                 // Fore some reason we did not get an alarm so we just release the semaphore and hope for the best
                 strip->m_reset_alarm = 0;
-                sem_release(&strip->m_reset_sem);
+                xSemaphoreGiveFromISR(strip->m_reset_sem, nullptr);
                 assert(false);
             }
         }
@@ -116,7 +114,8 @@ void StripBase::base_init(volatile void *dma_addr, size_t dma_count)
 
     // Initialize reset delay semaphore
     m_reset_alarm = 0;
-    sem_init(&m_reset_sem, 1, 1);
+    m_reset_sem = xSemaphoreCreateBinaryStatic(&m_reset_sem_buf);
+    xSemaphoreGive(m_reset_sem);
 
     // Setup DMA
     m_dma = dma_claim_unused_channel(true);
@@ -150,7 +149,7 @@ void StripBase::base_init(volatile void *dma_addr, size_t dma_count)
 void StripBase::show()
 {
     // Wait for previous grace period to complete
-    sem_acquire_blocking(&m_reset_sem); 
+    xSemaphoreTake(m_reset_sem, portMAX_DELAY);
 
     // Call sub-class function top copy pixel data into dma buffer
     copy_buffer();

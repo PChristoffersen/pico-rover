@@ -11,6 +11,7 @@
 #include <functional>
 #include <pico/stdlib.h>
 #include <pico/mutex.h>
+#include <rtos.h>
 #include <util/locking.h>
 #include <util/callback.h>
 
@@ -25,18 +26,18 @@ namespace Sensor {
             PicoADC(PicoADC&&) = delete; // No move constructor
 
             void init();
-            absolute_time_t update();
 
-            float get_battery() const { MUTEX_GUARD(m_mutex); return m_battery_voltage; }
-            float get_vsys() const    { MUTEX_GUARD(m_mutex); return m_vsys_voltage; }
-            float get_temp() const    { MUTEX_GUARD(m_mutex); return m_temp; }
+            float get_battery() const { SEMAPHORE_GUARD(m_sem); return m_battery_voltage; }
+            float get_vsys() const    { SEMAPHORE_GUARD(m_sem); return m_vsys_voltage; }
+            float get_temp() const    { SEMAPHORE_GUARD(m_sem); return m_temp; }
 
             void add_battery_cb(callback_type::call_type cb) { m_battery_cb.add(cb); }
             void add_vsys_cb(callback_type::call_type cb) { m_vsys_cb.add(cb); }
             void add_temp_cb(callback_type::call_type cb) { m_temp_cb.add(cb); }
 
         private:
-            static constexpr int64_t UPDATE_INTERVAL = 250000u; // 250ms
+            static constexpr uint    TASK_STACK_SIZE { configMINIMAL_STACK_SIZE };
+            static constexpr int64_t UPDATE_INTERVAL_MS = 250u;
             static constexpr float   ADC_REF         = 3.3f;
             static constexpr uint    ADC_RESOLUTION  = (1u<<12);
             static constexpr uint    VSYS_PIN        = 29;
@@ -49,9 +50,12 @@ namespace Sensor {
             const float m_battery_r1;
             const float m_battery_r2;
 
-            mutable mutex_t m_mutex;
+            StaticSemaphore_t m_sem_buf;
+            SemaphoreHandle_t m_sem;
 
-            absolute_time_t m_last_update;
+            StaticTask_t m_task_buf;
+            StackType_t  m_task_stack[TASK_STACK_SIZE];
+            TaskHandle_t m_task;
 
             float m_battery_voltage;
             float m_vsys_voltage;
@@ -65,6 +69,7 @@ namespace Sensor {
             void _handle_vsys(float adc_voltage);
             void _handle_temp(float adc_voltage);
 
+            inline void run();
     };
 
 }

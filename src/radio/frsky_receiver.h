@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <pico/stdlib.h>
 #include <pico/mutex.h>
-
+#include <rtos.h>
 
 #include <util/ringbuffer.h>
 #include <util/locking.h>
@@ -34,17 +34,14 @@ namespace Radio::FrSky {
             Receiver(Receiver&&) = delete; // No move constructor
 
             void init();
-            void begin();
-
-            absolute_time_t update();
 
             void add_callback(control_cb_type::call_type callback) { m_control_callback.add(callback); }
             void set_telemetry_provider(TelemetryProvider *provider) { m_telemetry_provider = provider; }
 
-            bool connected() const            { MUTEX_GUARD(m_mutex); return !m_channels.flags().frameLost(); }
-            Channels::flag_type flags() const { MUTEX_GUARD(m_mutex); return m_channels.flags(); }
-            Channels::rssi_type rssi() const  { MUTEX_GUARD(m_mutex); return m_channels.rssi(); } 
-            size_t channel_count() const      { MUTEX_GUARD(m_mutex); return m_channels.count(); } 
+            bool connected() const            { SEMAPHORE_GUARD(m_mutex); return !m_channels.flags().frameLost(); }
+            Channels::flag_type flags() const { SEMAPHORE_GUARD(m_mutex); return m_channels.flags(); }
+            Channels::rssi_type rssi() const  { SEMAPHORE_GUARD(m_mutex); return m_channels.rssi(); } 
+            size_t channel_count() const      { SEMAPHORE_GUARD(m_mutex); return m_channels.count(); } 
 
             uint n_control_packets() const   { return m_control_packets; }
             uint n_telemetry_sent() const    { return m_telemetry_sent; }
@@ -56,9 +53,13 @@ namespace Radio::FrSky {
             #endif
 
         private:
-            static constexpr uint8_t RECEIVER_ID = 0x67;
-            static constexpr size_t RX_BUFFER_SIZE = 128u;
-            static constexpr size_t TX_BUFFER_SIZE = 32u;
+            static constexpr uint TASK_STACK_SIZE { 2*configMINIMAL_STACK_SIZE };
+            static constexpr uint8_t RECEIVER_ID  { 0x67 };
+
+            static constexpr size_t RX_BUFFER_SIZE { 128u };
+            static constexpr size_t TX_BUFFER_SIZE { 32u };
+            static constexpr size_t RX_SCRATCH_SIZE { sizeof(fbus_control_24_t) };
+
             static constexpr size_t BUFFER_MAX_WAIT_CHARS = 32u;
             static constexpr int64_t SYNC_TIMEOUT = 100000; // 100ms
 
@@ -69,7 +70,6 @@ namespace Radio::FrSky {
                 SYNCING,
                 READ_CONTROL,
                 READ_DOWNLINK,
-                WAIT_WRITE_UPLINK,
                 WRITE_UPLINK,
                 READ_UPLINK
             };
@@ -83,20 +83,33 @@ namespace Radio::FrSky {
             const uint m_rx_pin;
             uart_inst_t *m_uart;
 
+            StaticTask_t m_task_buf;
+            StackType_t m_task_stack[TASK_STACK_SIZE];
+            TaskHandle_t m_task;
+
+
+            // Buffers
+            uint8_t m_rx_scratch[RX_SCRATCH_SIZE];
+            uint8_t m_rx_scratch_size;
+
+            uint8_t m_rx_buffer_data[RX_BUFFER_SIZE];
+            StaticStreamBuffer_t m_rx_buffer_buf;
+            StreamBufferHandle_t m_rx_buffer;
+            
+            uint8_t m_tx_buffer_data[TX_BUFFER_SIZE];
+            StaticStreamBuffer_t m_tx_buffer_buf;
+            StreamBufferHandle_t m_tx_buffer;
+
 
             State m_state;
             absolute_time_t m_last_rx_time;
             absolute_time_t m_sync_begin_time;
 
             // Current data
-            mutable mutex_t m_mutex;
-
+            StaticSemaphore_t m_mutex_buf;
+            mutable SemaphoreHandle_t m_mutex;
             Channels m_channels;
             control_cb_type m_control_callback;
-
-            // Buffers
-            rx_buffer_type m_rx_buffer;
-            tx_buffer_type m_tx_buffer;
 
             // Telemetry
             TelemetryProvider *m_telemetry_provider;
@@ -108,25 +121,27 @@ namespace Radio::FrSky {
 
             void lost_sync();
 
+            void init_isr();
             inline void isr_handler();
             inline void irq_set_tx_enable(bool enable);
-            void start_tx();
 
-            uint64_t buffer_wait_time_us(int bytes);
+            void rx_scratch_recv(size_t bytes);
+            void rx_scratch_pop(size_t bytes);
+            void tx_send(const uint8_t *buf, size_t sz);
 
             inline void begin_sync();
             inline void begin_read_control();
             inline void begin_read_downlink();
-            inline void begin_wait_write_uplink();
             inline void begin_write_uplink();
             inline void begin_read_uplink();
 
-            absolute_time_t do_sync();
-            absolute_time_t do_read_control();
-            absolute_time_t do_read_downlink();
-            absolute_time_t do_wait_write_uplink();
-            absolute_time_t do_write_uplink();
-            absolute_time_t do_read_uplink();
+            void do_sync();
+            void do_read_control();
+            void do_read_downlink();
+            void do_write_uplink();
+            void do_read_uplink();
+
+            void run();
 
     };
 

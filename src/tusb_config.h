@@ -64,6 +64,9 @@
   #error "Incorrect RHPort configuration"
 #endif
 
+#undef CFG_TUSB_OS
+#define CFG_TUSB_OS OPT_OS_FREERTOS
+
 #ifndef CFG_TUSB_OS
 #define CFG_TUSB_OS               OPT_OS_NONE
 #endif

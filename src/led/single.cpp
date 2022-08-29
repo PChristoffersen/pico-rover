@@ -8,11 +8,42 @@
 namespace LED {
 
 Single::Single(uint pin) :
+    m_task { nullptr },
     m_pin { pin },
     m_blinking { false },
-    m_interval { DEFAULT_BLINK_INTERVAL }
+    m_interval { pdMS_TO_TICKS(DEFAULT_BLINK_INTERVAL_MS) }
 {
+    m_mutex = xSemaphoreCreateMutexStatic(&m_mutex_buf);
+    configASSERT(m_mutex);
+    xSemaphoreGive(m_mutex);
 }
+
+
+void Single::set(bool on)
+{
+    xSemaphoreTake(m_mutex, portMAX_DELAY);
+    m_state = on;
+    gpio_put(m_pin, m_state);
+    if (m_blinking) {
+        vTaskSuspend(m_task);
+        m_blinking = false;
+    }
+    xSemaphoreGive(m_mutex);
+}
+
+
+inline void Single::run()
+{
+    while (true) {
+        xSemaphoreTake(m_mutex, portMAX_DELAY);
+        m_state = !m_state;
+        gpio_put(m_pin, m_state);
+        xSemaphoreGive(m_mutex);
+        vTaskDelay(m_interval);
+    }
+}
+
+
 
 
 void Single::init()
@@ -20,50 +51,23 @@ void Single::init()
     gpio_init(m_pin);
     gpio_set_dir(m_pin, GPIO_OUT);
     gpio_put(m_pin, true);
-}
 
-
-void Single::on()
-{
-    gpio_put(m_pin, 1);
+    m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<Single*>(arg)->run(); }, "LED", TASK_STACK_SIZE, this, LED_BLINK_TASK_PRIORITY, m_task_stack, &m_task_buf);
+    configASSERT(m_task);
+    vTaskSuspend(m_task);
     m_blinking = false;
 }
 
 
-void Single::off()
-{
-    gpio_put(m_pin, false);
-    m_blinking = false;
-}
 
-
-bool Single::blink()
+void Single::blink()
 {
+    xSemaphoreTake(m_mutex, portMAX_DELAY);
     if (m_blinking) 
-        return true;
-    m_blink_last = get_absolute_time();
+        return;
+    vTaskResume(m_task);
     m_blinking = true;
-    return false;
-}
-
-
-absolute_time_t Single::update()
-{
-    if (!m_blinking)
-        return make_timeout_time_ms(60000);
-
-    static bool state = false;
-    if (absolute_time_diff_us(m_blink_last, get_absolute_time())>m_interval) {
-        state = !state;
-        if (state) {
-            gpio_put(m_pin, 1);
-        }
-        else {
-            gpio_put(m_pin, 0);
-        }
-        m_blink_last = delayed_by_us(m_blink_last, m_interval);
-    }
-    return delayed_by_us(m_blink_last, m_interval);
+    xSemaphoreGive(m_mutex);
 }
 
 

@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
-#include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake) 
+include(FreeRTOS_Kernel_import.cmake)
 
 project(pico-rover LANGUAGES C CXX ASM)
 
@@ -31,6 +31,7 @@ add_executable(${PROJECT_NAME}
     src/displayrender.cpp
     src/ledrender.cpp
     src/robot.cpp
+    src/rtos.c
     src/usb_descriptors.c
     src/telemetryprovider.cpp
     src/led/dummy.cpp
@@ -49,7 +50,6 @@ add_executable(${PROJECT_NAME}
     src/sensor/ina219.cpp
     src/util/debug.cpp
     src/util/i2c_bus.cpp
-    src/util/usb_bus.cpp
     src/watchdog/watchdog.cpp
     src/ros/client.cpp
     src/ros/hal.c
@@ -74,8 +74,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 else()
     #target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Werror -Wno-unused-parameter)
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Werror -Wno-unused-parameter)
-    pico_enable_stdio_usb(${PROJECT_NAME} 1)
+    #pico_enable_stdio_usb(${PROJECT_NAME} 1)
 endif()
+
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/src)
 #target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
@@ -88,6 +89,17 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_UART_RX_PIN=17)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SDA_PIN=21)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SCL_PIN=20)
 
+
+set_source_files_properties(
+				${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/include/portmacro.h
+				PROPERTIES
+				COMPILE_FLAGS "-Wno-type-limits")
+
+set_source_files_properties(
+                ${PICO_TINYUSB_PATH}/hw/bsp/rp2040/family.c
+                ${PICO_TINYUSB_PATH}/src/tusb.c
+                PROPERTIES
+                COMPILE_FLAGS "-Wno-type-limits")
 
 # Add PIO programs
 pico_generate_pio_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/led/ws2812.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
@@ -119,6 +131,8 @@ font_generate_header(${PROJECT_NAME} LiberationSans:Bold 24 LiberationSans_24 ${
 
 # Add the standard library to the build
 target_link_libraries(${PROJECT_NAME} 
+    FreeRTOS-Kernel
+    FreeRTOS-Kernel-Heap4
     pico_stdlib
     pico_unique_id
     pico_multicore
@@ -140,7 +154,8 @@ target_link_libraries(${PROJECT_NAME}
 # Add wifi
 if(PICO_BOARD STREQUAL "pico_w")
     target_link_libraries(${PROJECT_NAME}
-        pico_cyw43_arch_lwip_threadsafe_background
+        #pico_cyw43_arch_lwip_threadsafe_background
+        pico_cyw43_arch_lwip_sys_freertos
     )
 endif()
 

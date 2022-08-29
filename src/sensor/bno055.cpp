@@ -15,9 +15,12 @@ namespace Sensor {
 
 BNO055::BNO055(Address addr):
     m_address { static_cast<addr_type>(addr) },
-    m_present { false }
+    m_present { false },
+    m_task { nullptr }
 {
-    mutex_init(&m_mutex);
+    m_sem = xSemaphoreCreateMutexStatic(&m_sem_buf);
+    assert(m_sem);
+    xSemaphoreGive(m_sem);
 }
 
 inline bool BNO055::write_reg8(uint8_t reg, uint8_t value)
@@ -50,7 +53,7 @@ bool BNO055::reset()
     // Reset the chip
     write_reg8(BNO055_SYS_RST_REG, BNO055_SYS_RST_MSK);
     auto start = get_absolute_time();
-    sleep_ms(RESET_DELAY_MS);
+    busy_wait_ms(RESET_DELAY_MS);
 
     uint8_t reg = 0x00;
     while (true) {
@@ -62,7 +65,7 @@ bool BNO055::reset()
             assert(false);
             return false;
         }
-        sleep_ms(10);
+        busy_wait_ms(10);
     }
     return true;
 }
@@ -80,11 +83,40 @@ void BNO055::update_calib()
     uint8_t reg;
     read_reg8(BNO055_CALIB_STAT_ADDR, reg);
 
-    mutex_enter_blocking(&m_mutex);
+    xSemaphoreTake(m_sem, portMAX_DELAY);
     m_mag_calib = (reg & BNO055_MAG_CALIB_STAT_MSK) >> BNO055_MAG_CALIB_STAT_POS;
     m_accel_calib = (reg & BNO055_ACCEL_CALIB_STAT_MSK) >> BNO055_ACCEL_CALIB_STAT_POS;
     m_gyro_calib = (reg & BNO055_GYRO_CALIB_STAT_MSK) >> BNO055_GYRO_CALIB_STAT_POS;
-    mutex_exit(&m_mutex);
+    xSemaphoreGive(m_sem);
+}
+
+
+
+void BNO055::run()
+{
+    TickType_t last_time = xTaskGetTickCount();
+    TickType_t last_calib = last_time;
+    
+    uint8_t data[3*sizeof(uint16_t)];
+
+    while (true) {
+        i2c_bus_acquire_blocking();
+        if (xTaskGetTickCount()-last_calib > pdMS_TO_TICKS(CALI_INTERVAL_MS)) {
+            update_calib();
+            last_calib = xTaskGetTickCount();
+        }
+        read(BNO055_EULER_H_LSB_ADDR, data, sizeof(data));
+        i2c_bus_release();
+
+        xSemaphoreTake(m_sem, portMAX_DELAY);
+        m_heading = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_H_LSB_ADDR, BNO055_EULER_H_LSB_VALUEH_REG))/BNO055_EULER_DIV_RAD;
+        m_pitch   = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_H_LSB_ADDR, BNO055_EULER_P_LSB_VALUEP_REG))/BNO055_EULER_DIV_RAD;
+        m_roll    = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_H_LSB_ADDR, BNO055_EULER_R_LSB_VALUER_REG))/BNO055_EULER_DIV_RAD;
+        xSemaphoreGive(m_sem);
+
+
+        xTaskDelayUntil(&last_time, pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
+    }
 }
 
 
@@ -99,7 +131,7 @@ void BNO055::init()
     auto start = get_absolute_time();
     auto since_boot = to_ms_since_boot(start);
     if (since_boot<RESET_DELAY_MS) {
-        sleep_until(delayed_by_ms(start, RESET_DELAY_MS-since_boot));
+        busy_wait_until(delayed_by_ms(start, RESET_DELAY_MS-since_boot));
     }
     while (true) {
         if (write_reg8(BNO055_PAGE_ID_REG, BNO055_PAGE_ZERO)) {
@@ -110,7 +142,7 @@ void BNO055::init()
             i2c_bus_release();
             return;
         }
-        sleep_ms(10);
+        busy_wait_ms(10);
     }
 
     // Verify chip id
@@ -143,7 +175,7 @@ void BNO055::init()
     // Set to normal power mode 
     write_reg8(BNO055_POWER_MODE_REG, BNO055_POWER_MODE_NORMAL);
     //write_reg8(BNO055_POWER_MODE_REG, BNO055_POWER_MODE_SUSPEND);
-    sleep_ms(10);
+    busy_wait_ms(10);
 
     // Set axis mapping
     reg = 0x00;
@@ -167,51 +199,22 @@ void BNO055::init()
     write_reg8(BNO055_UNIT_SEL_ADDR, reg);
 
     write_reg8(BNO055_OPERATION_MODE_REG, BNO055_OPERATION_MODE_NDOF);
-    sleep_ms(20);
+    busy_wait_ms(20);
 
     update_calib();
 
     i2c_bus_release();
 
-    m_last_update = get_absolute_time();
-    m_last_cali_update = m_last_update;
-
+    m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<BNO055*>(arg)->run(); }, "IMU", TASK_STACK_SIZE, this, IMU_TASK_PRIORITY, m_task_stack, &m_task_buf);
+    assert(m_task);
 }
 
 
-
-absolute_time_t BNO055::update()
-{
-    auto now = get_absolute_time();
-    if (absolute_time_diff_us(m_last_update, now)>INTERVAL) {
-        uint8_t data[3*sizeof(uint16_t)];
-
-        if (!i2c_bus_try_acquire()) {
-            return delayed_by_us(now, 100);
-        }
-
-        if (absolute_time_diff_us(m_last_cali_update, now)>CALI_INTERVAL) {
-            update_calib();
-            m_last_cali_update = now;
-        }
-        read(BNO055_EULER_H_LSB_ADDR, data, sizeof(data));
-        i2c_bus_release();
-
-        mutex_enter_blocking(&m_mutex);
-        m_heading = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_H_LSB_ADDR, BNO055_EULER_H_LSB_VALUEH_REG))/BNO055_EULER_DIV_RAD;
-        m_pitch   = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_H_LSB_ADDR, BNO055_EULER_P_LSB_VALUEP_REG))/BNO055_EULER_DIV_RAD;
-        m_roll    = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_H_LSB_ADDR, BNO055_EULER_R_LSB_VALUER_REG))/BNO055_EULER_DIV_RAD;
-        mutex_exit(&m_mutex);
-
-        m_last_update = delayed_by_us(m_last_update, INTERVAL);
-    }
-    return delayed_by_us(m_last_update, INTERVAL);
-}
 
 
 void BNO055::print() const 
 {
-    MUTEX_GUARD(m_mutex);
+    SEMAPHORE_GUARD(m_sem);
     printf("BNO055:   calib=%u,%u,%u  heading=%5.2f (%5.1f)   pitch=%5.2f (%5.1f)    roll=%5.2f (%5.1f)\n", m_mag_calib, m_accel_calib, m_gyro_calib, m_heading, m_heading*180.0/M_PI, m_pitch, m_pitch*180.0/M_PI, m_roll, m_roll*180.0/M_PI);
 }
 

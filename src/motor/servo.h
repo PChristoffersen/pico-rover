@@ -11,7 +11,7 @@
 #include <array>
 #include <stdio.h>
 #include <pico/stdlib.h>
-#include <pico/mutex.h>
+#include <rtos.h>
 
 #include <boardconfig.h>
 
@@ -51,7 +51,9 @@ namespace Motor {
             uint m_slice;
             uint m_channel;
 
-            mutex_t m_mutex;            
+            StaticSemaphore_t m_mutex_buf;
+            SemaphoreHandle_t m_mutex;
+
             bool m_enabled;
             value_t m_value;
     };

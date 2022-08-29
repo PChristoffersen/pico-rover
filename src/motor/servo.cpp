@@ -20,7 +20,8 @@ Servo::Servo(id_type id, uint pin, value_t initial) :
     m_enabled  { false },
     m_value { initial }
 {
-    mutex_init(&m_mutex);
+    m_mutex = xSemaphoreCreateBinaryStatic(&m_mutex_buf);
+    assert(m_mutex);
 }
 
 
@@ -53,7 +54,7 @@ void Servo::init()
 
 void Servo::set_enabled(bool enabled)
 {
-    MUTEX_GUARD(m_mutex);
+    SEMAPHORE_GUARD(m_mutex);
     if (m_enabled==enabled) return;
     m_enabled = enabled;
     #ifndef DEBUG_USE_SERVO_PINS
@@ -69,7 +70,7 @@ void Servo::set_enabled(bool enabled)
 
 void Servo::put(uint16_t us) 
 {
-    MUTEX_GUARD(m_mutex);
+    SEMAPHORE_GUARD(m_mutex);
     if (m_value!=us) {
         m_value = us;
         if (m_enabled) {

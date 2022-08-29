@@ -36,7 +36,6 @@ namespace OLED {
             bool present() { return m_present; }
 
             void update_blocking();
-            bool update_block_until(absolute_time_t until);
 
             bool update_needed() const { return m_present && m_framebuffer.is_dirty(); }
 

@@ -3,10 +3,12 @@
 #include <math.h>
 #include <pico/stdlib.h>
 #include <pico/unique_id.h>
-#include <pico/multicore.h>
 #include <hardware/watchdog.h>
 #include <hardware/clocks.h>
-#include <hardware/i2c.h>
+
+#include <tusb.h>
+#include <FreeRTOS.h>
+#include <semphr.h>
 
 #include "boardconfig.h"
 #include "robot.h"
@@ -15,7 +17,6 @@
 #include "util/debug.h"
 #include "util/battery.h"
 #include "util/i2c_bus.h"
-#include "util/usb_bus.h"
 
 #include "ros/client.h"
 
@@ -29,8 +30,7 @@ static ROS::Client ros;
 //#define USE_WATCHDOG
 #define USE_RADIO
 
-
-
+#if 0
 static void drive_wheels(const Radio::FrSky::TaranisX9DPlus &mapping) {
     auto stick_x = -mapping.right_x().asFloat();
     auto stick_y =  mapping.right_y().asFloat();
@@ -75,8 +75,9 @@ static void drive_wheels(const Radio::FrSky::TaranisX9DPlus &mapping) {
     motors[Motor::DCMotor::REAR_LEFT].set_duty(duty_rl);
     motors[Motor::DCMotor::REAR_RIGHT].set_duty(duty_rr);
 }
+#endif
 
-
+#if 0
 static absolute_time_t main_update() 
 {
     constexpr int64_t INTERVAL { 4000000ll };
@@ -120,6 +121,53 @@ static absolute_time_t main_update()
 
     return make_timeout_time_us(1000);
 }
+#endif
+
+
+static void main_task(__unused void *params)
+{
+    constexpr uint INTERVAL { 1000 };
+    constexpr uint n_states = 4;
+    uint state = 0;
+
+    TickType_t last_time = xTaskGetTickCount();
+    while (true) {
+        printf("Tick: %d\n", state);
+
+        switch (state) {
+            case 0: 
+                {
+                    static char stat_buf[1024];
+                    stat_buf[0] = '\0';
+                    vTaskGetRunTimeStats(stat_buf);
+                    //vTaskList(stat_buf);
+                    printf("%s\n", stat_buf);
+                }
+                break;
+            case 1: 
+                {
+                }
+                break;
+            case 2: 
+                {
+                    //robot.receiver().print_stats();
+                    //robot.telemetry_provider().print_stats();
+                }
+                break;
+            case 3: 
+                {
+                    robot.imu().print();
+                }
+                break;
+        }
+
+
+        state++;
+        if (state>=n_states) state = 0;
+
+        xTaskDelayUntil(&last_time, pdMS_TO_TICKS(INTERVAL));
+    }
+}
 
 
 
@@ -150,6 +198,15 @@ static void print_banner()
     printf("        Version: %s\n", PICO_PROGRAM_VERSION_STRING);
     printf("          Build: %s\n", PICO_CMAKE_BUILD_TYPE);
     printf("           Date: %s\n", __DATE__);
+
+    const char *rtos_name;
+    #if ( portSUPPORT_SMP == 1 )
+    rtos_name = "FreeRTOS SMP";
+    #else
+    rtos_name = "FreeRTOS";
+    #endif
+    printf("           RTOS: %s\n", rtos_name);
+
     printf("  CPU Frequency: %.3f MHz\n", clock_get_hz(clk_sys)/1000000.0f);
 
     char board_id[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1] = { '\0', };
@@ -163,7 +220,6 @@ static void print_banner()
     else {
         printf("Clean boot\n");
     }
-    printf("  CPU Frequency: %.3f MHz\n", clock_get_hz(clk_sys)/1000000.0f);
     if (robot.imu().present()) {
         printf("            IMU: Present (sw: %04x)\n", robot.imu().sw_rev());
     }
@@ -182,6 +238,7 @@ static void print_banner()
 
 static void init() 
 {
+    #if 0
     // Register callbacks
     robot.receiver_listener().add_callback([](auto &channels, auto &mapping){
         if (!channels.sync() || channels.flags().frameLost()) {
@@ -200,6 +257,7 @@ static void init()
         }
         robot.led_render().set_mode(static_cast<uint>(mapping.sc()));
     });
+    #endif
 
 
     #if 0
@@ -228,7 +286,7 @@ static void init()
 
 
 
-
+#if 0
 /******************************************************************************
  * Core 1
  ******************************************************************************/
@@ -311,39 +369,40 @@ static void main_core0()
     }
 }
 
+#endif
 
+
+static void vLaunch() 
+{
+    xTaskCreate(main_task, "Main", configMINIMAL_STACK_SIZE, nullptr, TEST_TASK_PRIORITY, nullptr);
+
+    // Setup complete - start blinking onboard led
+    robot.led_builtin().blink();
+
+    /* Start the tasks and timer running. */
+    printf("Starting scheduler\n");
+    vTaskStartScheduler();
+}
 
 
 int main()
 {
     stdio_init_all();
     debug_init();
+    //tusb_init();
     i2c_bus_init();
-    usb_bus_init();
 
     // Init basic systems
-    watchdog.init();
+    //watchdog.init();
     robot.init();
-    ros.init();
+    //ros.init();
     init();
 
     // All subsystems running
     wait_cdc();
     print_banner();
 
-    // Start core1
-    printf("Booting core1\n");
-    core1_init();
-    core1_start();
+    // Launch RTOS
+    vLaunch();
 
-    watchdog.begin();
-
-    // Enter main loop
-    main_core0();
-
-    // Shutdown
-    core1_stop();
-    robot.term();
-
-    while (true);
 }

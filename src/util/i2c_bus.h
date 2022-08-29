@@ -13,8 +13,7 @@
 void i2c_bus_init();
 
 void i2c_bus_acquire_blocking();
-bool i2c_bus_acquire_block_until(absolute_time_t until);
-bool i2c_bus_acquire_timeout_us(uint32_t timeout_us);
+bool i2c_bus_acquire_timeout_ms(uint32_t timeout_ms);
 bool i2c_bus_try_acquire();
 void i2c_bus_release();
 

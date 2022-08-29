@@ -11,8 +11,7 @@ class LEDRender {
         LEDRender(const LEDRender&) = delete; // No copy constructor
         LEDRender(LEDRender&&) = delete; // No move constructor
 
-        void begin();
-        absolute_time_t update();
+        void init();
 
         void update_connected(bool connected);
 

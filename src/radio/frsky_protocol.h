@@ -108,7 +108,6 @@ namespace Radio::FrSky {
     static constexpr uint8_t FBUS_UPLINK_DATA_FRAME = 0x10;
     static constexpr size_t  FBUS_UPLINK_SIZE       = (FBUS_UPLINK_HDR_SIZE+FBUS_UPLINK_HDR+1);
     static constexpr int64_t FBUS_UPLINK_SEND_DELAY_MAX_US = 2500ll;
-    static constexpr int64_t FBUS_UPLINK_SEND_DELAY_MIN_US = 300ll;
     static constexpr int64_t FBUS_UPLINK_SEND_TIMEOUT_US   = 3200ll;
     static constexpr int64_t FBUS_UPLINK_POST_DELAY_US     = 5000ll; // 4 ms
 
