@@ -183,7 +183,9 @@ void DisplayRender::update_battery()
 
 void DisplayRender::update_radio()
 {
-    const auto &channels = m_robot.receiver_listener().channels();
+    auto flags = m_robot.receiver().flags();
+    auto sync= m_robot.receiver().sync();
+    auto rssi = m_robot.receiver().rssi();
 
     constexpr int TEXT_WIDTH  { 12 };
     constexpr int AREA_LEFT   { 128-Image::Battery.width()-20-TEXT_WIDTH };
@@ -194,18 +196,17 @@ void DisplayRender::update_radio()
 
     m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, OLED::Framebuffer::DrawOp::SUBTRACT);
 
-    if (!channels.sync()) {
+    if (!sync) {
         // Not in sync with receiver module
         m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::Warning);
     }
-    else if (channels.flags().frameLost()) {
+    else if (flags.frameLost()) {
         // Receiver module lost connection to transmitter
         m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::NoConnection);
     }
     else {
         // All is good
         constexpr auto font { Font::Fixed_8x8 };
-        auto rssi = channels.rssi();
         if (rssi>99) 
             rssi = 99;
         char text[4];

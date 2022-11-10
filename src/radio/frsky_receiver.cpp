@@ -70,8 +70,13 @@ void Receiver::init()
     begin_sync();
 
     m_task = xTaskCreateStatic([](auto args){ reinterpret_cast<Receiver*>(args)->run(); }, "RC", TASK_STACK_SIZE, this, RECEIVER_TASK_PRIORITY, m_task_stack, &m_task_buf);
-    vTaskCoreAffinitySet(m_task, 0b10);
+    #if FREE_RTOS_KERNEL_SMP && configNUM_CORES > 1
+    vTaskCoreAffinitySet(m_task, 1<<ISR_CORE);
+    #endif
     assert(m_task);
+
+    m_task_lower = xTaskCreateStatic([](auto args){ reinterpret_cast<Receiver*>(args)->run_lower(); }, "RCLower", TASK_LOWER_STACK_SIZE, this, RECEIVER_LOWER_TASK_PRIORITY, m_task_lower_stack, &m_task_lower_buf);
+    assert(m_task_lower);
 }
 
 
@@ -175,8 +180,7 @@ void Receiver::lost_sync()
     m_channels.set_rssi(0);
     m_channels.set_sync(false);
     xSemaphoreGive(m_mutex);
-
-    m_control_callback(m_channels);
+    xTaskNotifyGive(m_task_lower);
 }
 
 
@@ -344,11 +348,11 @@ void Receiver::do_read_control()
             return;
     }
 
+    m_control_packets++;
+
     xSemaphoreGive(m_mutex);
 
-    m_control_callback(m_channels);
-
-    m_control_packets++;
+    xTaskNotifyGive(m_task_lower);
 
     begin_read_downlink();
 }
@@ -452,9 +456,9 @@ void Receiver::run()
     init_isr();
 
     // Allow task to run on all cores after we have setup interrupt handler
+    #if FREE_RTOS_KERNEL_SMP && configNUM_CORES > 1
     vTaskCoreAffinitySet(nullptr, 0b11);
-
-    printf("Receiver task running\n");
+    #endif
 
     while (true) {
         switch (m_state) {
@@ -477,6 +481,24 @@ void Receiver::run()
                 assert(false);
                 vTaskDelay(pdMS_TO_TICKS(10));
         }    
+    }
+}
+
+
+void Receiver::run_lower()
+{
+    channels_type channels;
+    mapping_type mapping;
+
+    while (true) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+        xSemaphoreTake(m_mutex, portMAX_DELAY);
+        channels = m_channels;
+        xSemaphoreGive(m_mutex);
+
+        mapping.set(channels);
+        m_control_callback(channels, mapping);
     }
 }
 

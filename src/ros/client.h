@@ -5,8 +5,8 @@
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
 
+#include <rtos.h>
 #include <util/callback.h>
-#include "pico_tcp_transport.h"
 
 namespace ROS {
 
@@ -21,30 +21,36 @@ namespace ROS {
 
             void init();
 
-            absolute_time_t update();
-
             rcl_allocator_t &allocator() { return m_allocator; }
             rcl_node_t      &node()      { assert(m_connected); return m_node; }
             rclc_executor_t &executor()  { assert(m_connected); return m_executor; }
             rclc_support_t  &support()   { assert(m_connected); return m_support; }
 
         private:
+            static constexpr uint TASK_STACK_SIZE { 2*configMINIMAL_STACK_SIZE };
+            static constexpr size_t BUFFER_SIZE { 256u };
             static constexpr auto NODE_NAME { "pico_node" };
             static constexpr auto NODE_NAMESPACE { "" };
             static constexpr size_t EXECUTOR_HANDLES { 1 };
             static constexpr int PING_TIMEOUT_MS { 1000 };
-            static constexpr uint64_t TICK_INTERVAL_US { 1000 };
-            static constexpr uint64_t SPIN_TIMEOUT_US { 1000 };
-            static constexpr int64_t CONNECT_INTERVAL_US { 
+            static constexpr uint64_t SPIN_TIMEOUT_US { 100000 };
+            static constexpr int64_t CONNECT_INTERVAL_MS { 
                 #ifdef RASPBERRYPI_PICO_W
-                2000000 
+                2000
                 #else
-                100000 
+                100
                 #endif
             };
 
+            StaticTask_t m_task_buf;
+            StackType_t m_task_stack[TASK_STACK_SIZE];
+            TaskHandle_t m_task;
+
             bool m_connected;
-            absolute_time_t m_last_connect;
+            StreamBufferHandle_t m_buffer;
+            StaticStreamBuffer_t m_buffer_buf;
+            uint8_t m_buffer_data[BUFFER_SIZE];
+
 
             rcl_allocator_t m_allocator;
             rcl_node_t      m_node;
@@ -59,6 +65,7 @@ namespace ROS {
             bool on_connect();
             void on_disconnect();
 
+            void run();
     };
 
 }

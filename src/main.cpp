@@ -5,12 +5,11 @@
 #include <pico/unique_id.h>
 #include <hardware/watchdog.h>
 #include <hardware/clocks.h>
-
 #include <tusb.h>
-#include <FreeRTOS.h>
-#include <semphr.h>
+#include <rtos.h>
 
 #include "boardconfig.h"
+#include "usb_device.h"
 #include "robot.h"
 #include "watchdog/watchdog.h"
 #include "util/time.h"
@@ -30,7 +29,7 @@ static ROS::Client ros;
 //#define USE_WATCHDOG
 #define USE_RADIO
 
-#if 0
+#if 1
 static void drive_wheels(const Radio::FrSky::TaranisX9DPlus &mapping) {
     auto stick_x = -mapping.right_x().asFloat();
     auto stick_y =  mapping.right_y().asFloat();
@@ -77,51 +76,6 @@ static void drive_wheels(const Radio::FrSky::TaranisX9DPlus &mapping) {
 }
 #endif
 
-#if 0
-static absolute_time_t main_update() 
-{
-    constexpr int64_t INTERVAL { 4000000ll };
-
-
-    static absolute_time_t ABSOLUTE_TIME_INITIALIZED_VAR(last_main, 0);
-    if (absolute_time_diff_us(last_main, get_absolute_time())>INTERVAL) {
-        static const uint n_states = 4;
-        static uint state = 0;
-
-        printf("Tick: %d\n", state);
-
-
-        switch (state) {
-            case 0: 
-                {
-                }
-                break;
-            case 1: 
-                {
-                }
-                break;
-            case 2: 
-                {
-                    robot.receiver().print_stats();
-                    robot.telemetry_provider().print_stats();
-                }
-                break;
-            case 3: 
-                {
-                    robot.imu().print();
-                }
-                break;
-        }
-
-
-        state++;
-        if (state>=n_states) state = 0;
-        last_main = delayed_by_us(last_main, INTERVAL);
-    }
-
-    return make_timeout_time_us(1000);
-}
-#endif
 
 
 static void main_task(__unused void *params)
@@ -156,7 +110,7 @@ static void main_task(__unused void *params)
                 break;
             case 3: 
                 {
-                    robot.imu().print();
+                    //robot.imu().print();
                 }
                 break;
         }
@@ -238,9 +192,9 @@ static void print_banner()
 
 static void init() 
 {
-    #if 0
+    #if 1
     // Register callbacks
-    robot.receiver_listener().add_callback([](auto &channels, auto &mapping){
+    robot.receiver().add_callback([](auto &channels, auto &mapping){
         if (!channels.sync() || channels.flags().frameLost()) {
             robot.set_armed(false);
             return;
@@ -286,91 +240,9 @@ static void init()
 
 
 
-#if 0
-/******************************************************************************
- * Core 1
- ******************************************************************************/
-static semaphore_t core1_sem;
-static volatile bool core1_running { true };
-
-static void main_core1() 
-{
-    printf("Core 1 running\n");
-
-    robot.receiver().begin();
-
-    absolute_time_t wait;
-
-    sem_acquire_blocking(&core1_sem);
-    while (core1_running) {
-        wait = robot.receiver().update();
-        wait = earliest_time(wait, watchdog.ping_core1());
-        wait = earliest_time(wait, robot.sys_sensor().update());
-        wait = earliest_time(wait, robot.battery_sensor().update());
-        wait = earliest_time(wait, robot.imu().update());
-        wait = earliest_time(wait, Motor::Encoder::update());
-
-        busy_wait_until(wait);
-        //sleep_until(wait);
-    }
-    sem_release(&core1_sem);
-}
-
-
-static void core1_init()
-{
-    sem_init(&core1_sem, 1, 1);
-}
-
-static void core1_start()
-{
-    core1_running = true;
-    multicore_launch_core1(main_core1);
-}
-
-static void core1_stop()
-{
-    core1_running = false;
-    sem_acquire_blocking(&core1_sem);
-}
-
-
-/******************************************************************************
- * Core 0
- ******************************************************************************/
-
-static void main_core0() 
-{
-    printf("Core 0 running\n");
-    robot.led_builtin().blink();
-    robot.led_render().begin();
-    robot.display_render().begin();
-
-    absolute_time_t wait;
-
-    while (true) {
-        wait = robot.led_builtin().update();
-        wait = earliest_time(wait, watchdog.ping_core0());
-        wait = earliest_time(wait, usb_bus_update());
-        wait = earliest_time(wait, robot.receiver_listener().update());
-        wait = earliest_time(wait, robot.led_render().update());
-        wait = earliest_time(wait, robot.display_render().update());
-        wait = earliest_time(wait, main_update());
-        wait = earliest_time(wait, ros.update());
-
-        if (robot.display().update_needed()) {
-            robot.display().update_block_until(wait);
-        }
-
-        //printf("Sleep: %lld\n", absolute_time_diff_us(get_absolute_time(), wait));
-
-        sleep_until(wait);
-
-    }
-}
-
-#endif
-
+//--------------------------------------------------------------------+
+// Device callbacks
+//--------------------------------------------------------------------+
 
 static void vLaunch() 
 {
@@ -389,13 +261,13 @@ int main()
 {
     stdio_init_all();
     debug_init();
-    //tusb_init();
     i2c_bus_init();
+    usb_device_init();
 
     // Init basic systems
     //watchdog.init();
     robot.init();
-    //ros.init();
+    ros.init();
     init();
 
     // All subsystems running

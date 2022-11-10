@@ -212,10 +212,12 @@ void BNO055::init()
 
 
 
+#ifndef NDEBUG
 void BNO055::print() const 
 {
     SEMAPHORE_GUARD(m_sem);
     printf("BNO055:   calib=%u,%u,%u  heading=%5.2f (%5.1f)   pitch=%5.2f (%5.1f)    roll=%5.2f (%5.1f)\n", m_mag_calib, m_accel_calib, m_gyro_calib, m_heading, m_heading*180.0/M_PI, m_pitch, m_pitch*180.0/M_PI, m_roll, m_roll*180.0/M_PI);
 }
+#endif
 
 }

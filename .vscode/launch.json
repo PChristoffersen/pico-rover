@@ -13,6 +13,7 @@
       "servertype": "openocd",
       "gdbPath": "gdb-multiarch",
       "device": "RP2040",
+      "rtos": "FreeRTOS",
       "configFiles": [
         "interface/picoprobe.cfg",
         "target/rp2040.cfg"

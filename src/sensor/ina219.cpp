@@ -119,8 +119,8 @@ bool INA219::read_reg(uint8_t reg, uint16_t &value)
 inline void INA219::run()
 {
     TickType_t last_time = xTaskGetTickCount();
-    uint16_t shunt_reg;
-    uint16_t bus_reg;
+    uint16_t shunt_reg = 0;
+    uint16_t bus_reg = 0;
 
     while (true) {
         i2c_bus_acquire_blocking();

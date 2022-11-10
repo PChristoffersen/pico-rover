@@ -24,7 +24,6 @@ Robot::Robot():
 
     // Radio
     m_receiver { RADIO_RECEIVER_UART, RADIO_RECEIVER_BAUD_RATE, RADIO_RECEIVER_TX_PIN, RADIO_RECEIVER_RX_PIN },
-    m_receiver_listener {},
 
     // LED/Displays
     #ifdef RASPBERRYPI_PICO_W
@@ -70,11 +69,9 @@ void Robot::init()
     printf("Init --------- 2\n");
 
     m_receiver.init();
-    m_receiver_listener.init(m_receiver);
     m_telemetry_provider.init();
     m_receiver.set_telemetry_provider(&m_telemetry_provider);
 
-    #if 0
     printf("Init --------- 3\n");
 
     // Register callbacks
@@ -86,7 +83,7 @@ void Robot::init()
         }
     });
 
-    m_receiver_listener.add_callback([this](const auto &channels, const auto &mapping){
+    m_receiver.add_callback([this](const auto &channels, const auto &mapping){
         auto connected = channels.sync() && !channels.flags().frameLost();
         if (m_connected!=connected) {
             m_connected = connected;
@@ -99,7 +96,6 @@ void Robot::init()
         m_display_render.update_armed(armed);
     });
 
-    #endif
 }
 
 

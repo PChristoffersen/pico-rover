@@ -33,6 +33,7 @@ add_executable(${PROJECT_NAME}
     src/robot.cpp
     src/rtos.c
     src/usb_descriptors.c
+    src/usb_device.c
     src/telemetryprovider.cpp
     src/led/dummy.cpp
     src/led/single.cpp
@@ -44,7 +45,6 @@ add_executable(${PROJECT_NAME}
     src/oled/framebuffer.cpp
     src/radio/frsky_mapping.cpp
     src/radio/frsky_receiver.cpp
-    src/radio/frsky_receiverlistener.cpp
     src/sensor/bno055.cpp
     src/sensor/pico_adc.cpp
     src/sensor/ina219.cpp
@@ -54,7 +54,6 @@ add_executable(${PROJECT_NAME}
     src/ros/client.cpp
     src/ros/hal.c
     src/ros/pico_cdc_transport.cpp
-    src/ros/pico_tcp_transport.cpp
 )
 
 
@@ -64,7 +63,7 @@ pico_set_program_version(${PROJECT_NAME} "0.1")
 
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unused-parameter)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unused-parameter  -Wno-unused-variable)
     pico_enable_stdio_usb(${PROJECT_NAME} 0)
     pico_enable_stdio_semihosting(${PROJECT_NAME} 0)
     pico_enable_stdio_uart(${PROJECT_NAME} 0)

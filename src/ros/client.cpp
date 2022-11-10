@@ -12,7 +12,6 @@
 
 
 #include "pico_cdc_transport.h"
-#include "pico_tcp_transport.h"
 
 
 namespace ROS {
@@ -25,13 +24,22 @@ static inline void RCCHECK(rcl_ret_t rc) {
 
 
 Client::Client():
+    m_task { nullptr },
     m_connected { false }
 {
     m_allocator = rcl_get_default_allocator();
 
+}
+
+
+void Client::init()
+{
+    m_buffer = xStreamBufferCreateStatic(BUFFER_SIZE, 1, m_buffer_data, &m_buffer_buf);
+    assert(m_buffer);
+
     rmw_uros_set_custom_transport(
         true,
-        nullptr,
+        m_buffer,
         #ifdef RASPBERRYPI_PICO_W
         pico_tcp_transport_open,
         pico_tcp_transport_close,
@@ -44,11 +52,9 @@ Client::Client():
         pico_cdc_transport_read
         #endif
     );
-}
 
-
-void Client::init()
-{
+    m_task = xTaskCreateStatic([](auto args){ reinterpret_cast<Client*>(args)->run(); }, "ROS", TASK_STACK_SIZE, this, ROS_TASK_PRIORITY, m_task_stack, &m_task_buf);
+    assert(m_task);
 }
 
 
@@ -103,30 +109,29 @@ void Client::on_disconnect()
 }
 
 
-absolute_time_t Client::update()
+
+void Client::run()
 {
-    if (!m_connected) {
-        if (absolute_time_diff_us(m_last_connect, get_absolute_time())>CONNECT_INTERVAL_US) {
-            transport_connect();
-            m_last_connect = get_absolute_time();
-        }
-        if (transport_is_connected()) {
-            if (on_connect()) {
-                return make_timeout_time_us(TICK_INTERVAL_US);
+    TickType_t last_time = xTaskGetTickCount();
+
+    while (true) {
+        while (!m_connected) {
+            if (xTaskGetTickCount()-last_time >= pdMS_TO_TICKS(CONNECT_INTERVAL_MS)) {
+                transport_connect();
+                last_time = xTaskGetTickCount();
             }
+            if (transport_is_connected()) {
+                if (on_connect()) {
+                    break;
+                }
+            }
+            vTaskDelay(pdMS_TO_TICKS(CONNECT_INTERVAL_MS));
         }
-        return make_timeout_time_us(CONNECT_INTERVAL_US);
+
+        rclc_executor_spin_some(&m_executor, RCL_US_TO_NS(SPIN_TIMEOUT_US));
     }
-
-    if (!transport_is_connected()) {
-        on_disconnect();
-        return make_timeout_time_us(CONNECT_INTERVAL_US);
-    }
-
-    rclc_executor_spin_some(&m_executor, RCL_US_TO_NS(SPIN_TIMEOUT_US));
-
-    return make_timeout_time_us(TICK_INTERVAL_US);
 }
+
 
 
 #if 0

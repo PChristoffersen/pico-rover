@@ -39,9 +39,7 @@ void Servo::init()
     pwm_set_wrap(m_slice,  PWM_WRAP);
     pwm_set_clkdiv(m_slice, clock_get_hz(clk_sys)/PWM_DIV);
 
-    printf("Init: %u %u\n", m_id, m_value);
     pwm_set_chan_level(m_slice, m_channel, 0);
-
 
     #ifndef DEBUG_USE_SERVO_PINS
     gpio_set_function(m_pin, GPIO_FUNC_PWM);

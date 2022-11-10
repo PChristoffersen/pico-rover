@@ -3,7 +3,6 @@
 #ifndef NDEBUG
 #include <hardware/timer.h>
 
-
 static uint32_t g_base_time = 0;
 
 void do_init_time()
@@ -17,6 +16,7 @@ uint32_t do_get_time()
 }
 
 #endif
+
 
 
 
@@ -77,4 +77,6 @@ void vApplicationGetTimerTaskMemory( StaticTask_t ** ppxTimerTaskTCBBuffer,
      * configMINIMAL_STACK_SIZE is specified in words, not bytes. */
     *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
 }
+
+
 

@@ -12,7 +12,6 @@
 #include <led/strip.h>
 #include <oled/display.h>
 #include <radio/frsky_receiver.h>
-#include <radio/frsky_receiverlistener.h>
 
 #include <telemetryprovider.h>
 #include <displayrender.h>
@@ -56,7 +55,6 @@ class Robot {
 
         // Radio
         Radio::FrSky::Receiver &receiver() { return m_receiver; }
-        Radio::FrSky::ReceiverListener &receiver_listener() { return m_receiver_listener; }
 
         TelemetryProvider &telemetry_provider() { return m_telemetry_provider; }
         DisplayRender &display_render() { return m_display_render; }
@@ -71,7 +69,6 @@ class Robot {
         Motor::DCMotor::array_type m_motors;
 
         Radio::FrSky::Receiver m_receiver;
-        Radio::FrSky::ReceiverListener m_receiver_listener;
 
         led_type m_led_builtin;
         LED::Strip<LED_STRIP_PIXEL_COUNT> m_led_strip;

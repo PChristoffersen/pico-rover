@@ -14,7 +14,6 @@
 #include <oled/display.h>
 #include <sensor/ina219.h>
 #include <sensor/pico_adc.h>
-#include <radio/frsky_receiverlistener.h>
 #include <rtos.h>
 
 class DisplayRender {
