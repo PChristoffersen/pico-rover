@@ -160,8 +160,8 @@ endif()
 
 
 # Add Micro-ROS
-target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/micro_ros_raspberrypi_pico_sdk/libmicroros/include)
-target_link_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/micro_ros_raspberrypi_pico_sdk/libmicroros)
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/libs/micro_ros_raspberrypi_pico_sdk/libmicroros/include)
+target_link_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/libs/micro_ros_raspberrypi_pico_sdk/libmicroros)
 target_link_libraries(${PROJECT_NAME} microros)
 
 
