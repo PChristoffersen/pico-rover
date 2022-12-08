@@ -28,19 +28,19 @@ include(cmake/font_generate.cmake)
 add_executable(${PROJECT_NAME} 
     src/main.cpp
     src/boardconfig.cpp
-    src/displayrender.cpp
-    src/ledrender.cpp
     src/robot.cpp
     src/rtos.c
     src/usb_descriptors.c
     src/usb_device.c
-    src/telemetryprovider.cpp
+    src/led/color_hsv.cpp
+    src/led/control.cpp
     src/led/dummy.cpp
     src/led/single.cpp
     src/led/strip.cpp
     src/motor/dcmotor.cpp
     src/motor/encoder.cpp
     src/motor/servo.cpp
+    src/oled/control.cpp
     src/oled/display.cpp
     src/oled/framebuffer.cpp
     src/radio/frsky_mapping.cpp
@@ -48,6 +48,7 @@ add_executable(${PROJECT_NAME}
     src/sensor/bno055.cpp
     src/sensor/pico_adc.cpp
     src/sensor/ina219.cpp
+    src/telemetry/provider.cpp
     src/util/debug.cpp
     src/util/i2c_bus.cpp
     src/watchdog/watchdog.cpp

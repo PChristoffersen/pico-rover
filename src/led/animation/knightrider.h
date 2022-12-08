@@ -1,6 +1,6 @@
 #pragma once
 
-#include "animation.h"
+#include "../animation.h"
 
 namespace LED::Animation {
 

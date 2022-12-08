@@ -1,4 +1,4 @@
-#include "displayrender.h"
+#include "control.h"
 
 #include <algorithm>
 
@@ -21,17 +21,16 @@
 #include <liberationmono_24.font.h>
 #include <liberationsans_16.font.h>
 #include <liberationsans_24.font.h>
-#include <oled/fixed_5x8.font.h>
-#include <oled/fixed_8x8.font.h>
-#include <oled/fixed_12x16.font.h>
-#include <oled/fixed_16x32.font.h>
+#include "fixed_5x8.font.h"
+#include "fixed_8x8.font.h"
+#include "fixed_12x16.font.h"
+#include "fixed_16x32.font.h"
 
-namespace Image = OLED::Resource::Image;
-namespace Font = OLED::Resource::Font;
+namespace OLED {
 
-DisplayRender::DisplayRender(OLED::Display &display, Robot &robot) :
-    m_display(display),
-    m_framebuffer(display.framebuffer()),
+Control::Control(Robot &robot) :
+    m_display { OLED_ADDRESS, OLED_TYPE },
+    m_framebuffer(m_display.framebuffer()),
     m_robot { robot },
     m_sem { nullptr },
     m_task { nullptr }
@@ -43,15 +42,13 @@ DisplayRender::DisplayRender(OLED::Display &display, Robot &robot) :
 
 
 
-inline void DisplayRender::run()
+inline void Control::run()
 {
     TickType_t last_time = xTaskGetTickCount();
     TickType_t last_radio = last_time;
     TickType_t last_battery = last_time;
 
-    xSemaphoreTake(m_sem, portMAX_DELAY);
-    m_framebuffer.clear();
-    xSemaphoreGive(m_sem);
+    xTaskDelayUntil(&last_time, pdMS_TO_TICKS(START_DELAY_MS));
 
     while (true) {
         xSemaphoreTake(m_sem, portMAX_DELAY);
@@ -76,25 +73,26 @@ inline void DisplayRender::run()
 }
 
 
-void DisplayRender::init()
+void Control::init()
 {
     m_battery_last_level = UINT32_MAX;
     m_battery_show = true;
 
-    if (m_display.present()) {
-        m_framebuffer.draw_bitmap((m_framebuffer.width()-Image::Raspberry_Logo.width())/2, (m_framebuffer.height()-Image::Raspberry_Logo.height())/2, Image::Raspberry_Logo);
-        m_display.update_blocking();
-    }
+    m_display.init();
 
     if (m_display.present()) {
-        m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<DisplayRender*>(arg)->run(); }, "Display", TASK_STACK_SIZE, this, DISPLAY_TASK_PRIORITY, m_task_stack, &m_task_buf);
+        m_framebuffer.draw_bitmap((m_framebuffer.width()-Resource::Image::Raspberry_Logo.width())/2, (m_framebuffer.height()-Resource::Image::Raspberry_Logo.height())/2, Resource::Image::Raspberry_Logo);
+        m_display.update_blocking();
+
+        m_framebuffer.clear();
+        m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<Control*>(arg)->run(); }, "Display", TASK_STACK_SIZE, this, DISPLAY_TASK_PRIORITY, m_task_stack, &m_task_buf);
         assert(m_task);
     }
 }
 
 
 
-void DisplayRender::off()
+void Control::off()
 {
     if (!m_display.present()) 
         return;
@@ -104,7 +102,7 @@ void DisplayRender::off()
 }
 
 
-void DisplayRender::update_battery()
+void Control::update_battery()
 {
     float vbat = m_robot.battery_sensor().get_bus_voltage();
     float vsys = m_robot.sys_sensor().get_vsys();
@@ -114,14 +112,14 @@ void DisplayRender::update_battery()
 
     if (critical || level != m_battery_last_level) {
         // Update battery icon and percent
-        constexpr int AREA_LEFT  { 128-Image::Battery.width() };
+        constexpr int AREA_LEFT  { 128-Resource::Image::Battery.width() };
         constexpr int AREA_TOP   {  0 };
         constexpr int BAR_LEFT   {  7 };
         constexpr int BAR_TOP    { 11 };
         constexpr int BAR_HEIGHT { 30 };
 
         // Clear
-        m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, Image::Battery.width(),Image::Battery.height()+16, OLED::Framebuffer::DrawOp::SUBTRACT);
+        m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, Resource::Image::Battery.width(),Resource::Image::Battery.height()+16, Framebuffer::DrawOp::SUBTRACT);
 
         if (critical) 
             m_battery_show = !m_battery_show;
@@ -130,28 +128,28 @@ void DisplayRender::update_battery()
 
         if (m_battery_show) {
             // Icon
-            m_framebuffer.draw_bitmap(AREA_LEFT, AREA_TOP, Image::Battery);
+            m_framebuffer.draw_bitmap(AREA_LEFT, AREA_TOP, Resource::Image::Battery);
             int bar_h = BAR_HEIGHT*level/100;
-            m_framebuffer.fill_rect(AREA_LEFT+BAR_LEFT, AREA_TOP+BAR_TOP+BAR_HEIGHT-bar_h, Image::Battery.width()-BAR_LEFT*2, bar_h);
+            m_framebuffer.fill_rect(AREA_LEFT+BAR_LEFT, AREA_TOP+BAR_TOP+BAR_HEIGHT-bar_h, Resource::Image::Battery.width()-BAR_LEFT*2, bar_h);
 
         }
 
         // Percent
-        const OLED::Font &font = Font::LiberationSans_16;
+        const OLED::Font &font = Resource::Font::LiberationSans_16;
         char text[8];
         sprintf(text, "%u", level);
-        m_framebuffer.draw_text(AREA_LEFT+(Image::Battery.width()-font.width(text))/2, AREA_TOP+Image::Battery.height(), text, font);
+        m_framebuffer.draw_text(AREA_LEFT+(Resource::Image::Battery.width()-font.width(text))/2, AREA_TOP+Resource::Image::Battery.height(), text, font);
 
         m_battery_last_level = level;
     }
 
     {
         // Update voltage and amps
-        const OLED::Font &font = Font::Fixed_8x8;
-        const OLED::Font &font2 = Font::LiberationSans_16;
+        const OLED::Font &font = Resource::Font::Fixed_8x8;
+        const OLED::Font &font2 = Resource::Font::LiberationSans_16;
         constexpr int AREA_TOP  { 64-16*3 };
         constexpr int AREA_LEFT { 0 };
-        constexpr uint AREA_WIDTH { 128-Image::Battery.width() };
+        constexpr uint AREA_WIDTH { 128-Resource::Image::Battery.width() };
         constexpr uint AREA_HEIGHT { 16*3 };
 
         // Clear
@@ -181,14 +179,14 @@ void DisplayRender::update_battery()
 }
 
 
-void DisplayRender::update_radio()
+void Control::update_radio()
 {
     auto flags = m_robot.receiver().flags();
     auto sync= m_robot.receiver().sync();
     auto rssi = m_robot.receiver().rssi();
 
     constexpr int TEXT_WIDTH  { 12 };
-    constexpr int AREA_LEFT   { 128-Image::Battery.width()-20-TEXT_WIDTH };
+    constexpr int AREA_LEFT   { 128-Resource::Image::Battery.width()-20-TEXT_WIDTH };
     constexpr int AREA_TOP    {  0 };
     constexpr int AREA_WIDTH  { 16+TEXT_WIDTH };
     constexpr int AREA_HEIGHT { 16 };
@@ -198,44 +196,44 @@ void DisplayRender::update_radio()
 
     if (!sync) {
         // Not in sync with receiver module
-        m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::Warning);
+        m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Resource::Image::Warning);
     }
     else if (flags.frameLost()) {
         // Receiver module lost connection to transmitter
-        m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::NoConnection);
+        m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Resource::Image::NoConnection);
     }
     else {
         // All is good
-        constexpr auto font { Font::Fixed_8x8 };
+        constexpr auto font { Resource::Font::Fixed_8x8 };
         if (rssi>99) 
             rssi = 99;
         char text[4];
         sprintf(text, "%u", rssi);
         m_framebuffer.draw_text(AREA_LEFT, AREA_TOP, text, font);
         if (rssi > 80) {
-            m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::Signal4);
+            m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Resource::Image::Signal4);
         }
         else if (rssi > 60) {
-            m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::Signal3);
+            m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Resource::Image::Signal3);
         }
         else if (rssi > 40) {
-            m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::Signal2);
+            m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Resource::Image::Signal2);
         }
         else {
-            m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Image::Signal1);
+            m_framebuffer.draw_bitmap(ICON_LEFT, AREA_TOP, Resource::Image::Signal1);
         }
     }
 }
 
 
-void DisplayRender::update_armed(bool armed) 
+void Control::update_armed(bool armed) 
 {
     constexpr int AREA_LEFT   {  8 };
     constexpr int AREA_TOP    {  0 };
     constexpr int AREA_WIDTH  { 24 };
     constexpr int AREA_HEIGHT {  8 };
 
-    constexpr auto &font { Font::Fixed_5x8 };
+    constexpr auto &font { Resource::Font::Fixed_5x8 };
 
 
     xSemaphoreTake(m_sem, portMAX_DELAY);
@@ -251,3 +249,4 @@ void DisplayRender::update_armed(bool armed)
 }
 
 
+}

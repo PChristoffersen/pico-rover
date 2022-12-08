@@ -1,7 +1,7 @@
 #pragma once
 
 #include <array>
-#include "animation.h"
+#include "../animation.h"
 
 
 namespace LED::Animation {

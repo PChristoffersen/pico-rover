@@ -1,9 +1,11 @@
-#include "telemetryprovider.h"
+#include "provider.h"
 
 #include <robot.h>
 #include <math.h>
 
-TelemetryProvider::TelemetryProvider(Robot &robot) :
+namespace Telemetry {
+
+Provider::Provider(Robot &robot) :
     m_robot { robot }, 
     m_primary { 0 },
     m_secondary { 0 }
@@ -12,7 +14,7 @@ TelemetryProvider::TelemetryProvider(Robot &robot) :
 }
 
 
-void TelemetryProvider::init()
+void Provider::init()
 {
     #ifndef NDEBUG
     m_last_print = get_absolute_time();
@@ -22,7 +24,7 @@ void TelemetryProvider::init()
 
 
 
-Radio::FrSky::Telemetry TelemetryProvider::get_secondary()
+Radio::FrSky::Telemetry Provider::get_secondary()
 {
     switch (m_secondary++) {
         case 0:
@@ -52,7 +54,7 @@ Radio::FrSky::Telemetry TelemetryProvider::get_secondary()
 }
 
 
-Radio::FrSky::Telemetry TelemetryProvider::get_next_telemetry()
+Radio::FrSky::Telemetry Provider::get_next_telemetry()
 {
     m_count++;
 
@@ -84,7 +86,7 @@ Radio::FrSky::Telemetry TelemetryProvider::get_next_telemetry()
 
 
 #ifndef NDEBUG
-void TelemetryProvider::print_stats()
+void Provider::print_stats()
 {
     auto now = get_absolute_time();
     auto tdiff = absolute_time_diff_us(m_last_print, now);
@@ -100,3 +102,5 @@ void TelemetryProvider::print_stats()
     m_last_print = now;
 }
 #endif
+
+}

@@ -9,13 +9,11 @@
 #include <motor/servo.h>
 #include <led/dummy.h>
 #include <led/single.h>
-#include <led/strip.h>
-#include <oled/display.h>
 #include <radio/frsky_receiver.h>
 
-#include <telemetryprovider.h>
-#include <displayrender.h>
-#include <ledrender.h>
+#include <telemetry/provider.h>
+#include <oled/control.h>
+#include <led/control.h>
 
 
 class Robot {
@@ -23,12 +21,6 @@ class Robot {
         using armed_callback_type = Callback<bool>;
         using connected_callback_type = Callback<bool>;
         
-        #ifdef RASPBERRYPI_PICO_W
-        using led_type = LED::Dummy;
-        #else
-        using led_type = LED::Single;
-        #endif
-
         Robot();
         Robot(const Robot&) = delete; // No copy constructor
         Robot(Robot&&) = delete; // No move constructor
@@ -48,17 +40,12 @@ class Robot {
         Motor::Servo::array_type   &servos() { return m_servos; }
         Motor::DCMotor::array_type &motors() { return m_motors; }
 
-        // LED/Displays
-        led_type &led_builtin() { return m_led_builtin; };
-        LED::Strip<LED_STRIP_PIXEL_COUNT> &led_strip() { return m_led_strip; }
-        OLED::Display &display() { return m_display; }
-
         // Radio
         Radio::FrSky::Receiver &receiver() { return m_receiver; }
 
-        TelemetryProvider &telemetry_provider() { return m_telemetry_provider; }
-        DisplayRender &display_render() { return m_display_render; }
-        LEDRender &led_render() { return m_led_render; }
+        Telemetry::Provider &telemetry_provider() { return m_telemetry_provider; }
+        OLED::Control &oled() { return m_oled; }
+        LED::Control &leds() { return m_leds; }
 
     private:
         Sensor::PicoADC m_sys_sensor;
@@ -70,13 +57,9 @@ class Robot {
 
         Radio::FrSky::Receiver m_receiver;
 
-        led_type m_led_builtin;
-        LED::Strip<LED_STRIP_PIXEL_COUNT> m_led_strip;
-        OLED::Display m_display;
-
-        TelemetryProvider m_telemetry_provider;
-        DisplayRender m_display_render;
-        LEDRender m_led_render;
+        Telemetry::Provider m_telemetry_provider;
+        OLED::Control m_oled;
+        LED::Control m_leds;
 
         bool m_armed;
         armed_callback_type m_armed_callback;

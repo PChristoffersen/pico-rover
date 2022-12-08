@@ -25,18 +25,10 @@ Robot::Robot():
     // Radio
     m_receiver { RADIO_RECEIVER_UART, RADIO_RECEIVER_BAUD_RATE, RADIO_RECEIVER_TX_PIN, RADIO_RECEIVER_RX_PIN },
 
-    // LED/Displays
-    #ifdef RASPBERRYPI_PICO_W
-    #else    
-    m_led_builtin { PICO_DEFAULT_LED_PIN },
-    #endif
-    m_led_strip { LED_STRIP_PIO, LED_STRIP_PIN, LED_STRIP_IS_RGBW },
-    m_display { OLED_ADDRESS, OLED_TYPE },
-
     // Higher level objects
     m_telemetry_provider { *this },
-    m_display_render { m_display, *this },
-    m_led_render { m_led_strip, *this }
+    m_oled { *this },
+    m_leds { *this }
 
 {
 
@@ -48,8 +40,9 @@ Robot::Robot():
 
 void Robot::init()
 {
-    m_led_builtin.init();
-    m_led_builtin.on();
+    m_leds.init();
+    m_leds.builtin().on();
+    m_oled.init();
 
     for (auto &servo : m_servos) {
         servo.init();
@@ -59,21 +52,17 @@ void Robot::init()
         motor.init();
     }
 
-    m_led_strip.init();
     m_sys_sensor.init();
     m_battery_sensor.init();
     m_imu.init();
-    m_display.init();
-    m_display_render.init();
-    m_led_render.init();
 
-    printf("Init --------- 2\n");
+    //printf("Init --------- 2\n");
 
     m_receiver.init();
     m_telemetry_provider.init();
     m_receiver.set_telemetry_provider(&m_telemetry_provider);
 
-    printf("Init --------- 3\n");
+    //printf("Init --------- 3\n");
 
     // Register callbacks
 
@@ -89,12 +78,12 @@ void Robot::init()
         if (m_connected!=connected) {
             m_connected = connected;
             m_connected_callback(m_connected);
-            m_led_render.update_connected(m_connected);
+            m_leds.update_connected(m_connected);
         }
     });
 
     m_armed_callback.add([this](auto armed){
-        m_display_render.update_armed(armed);
+        m_oled.update_armed(armed);
     });
 
 }

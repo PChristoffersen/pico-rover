@@ -180,7 +180,7 @@ static void print_banner()
     else {
         printf("            IMU: Not found\n");
     }
-    printf("        Display: %s\n", robot.display().present()?"Present":"Not found");
+    printf("        Display: %s\n", robot.oled().display().present()?"Present":"Not found");
 
     printf("--------------------------------------------\n");
 
@@ -249,7 +249,7 @@ static void vLaunch()
     xTaskCreate(main_task, "Main", configMINIMAL_STACK_SIZE, nullptr, TEST_TASK_PRIORITY, nullptr);
 
     // Setup complete - start blinking onboard led
-    robot.led_builtin().blink();
+    robot.leds().builtin().blink();
 
     /* Start the tasks and timer running. */
     printf("Starting scheduler\n");

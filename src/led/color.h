@@ -107,6 +107,60 @@ namespace LED {
             }
 
 
+            class HSV {
+                public:
+                    constexpr HSV(uint8_t h, uint8_t s, uint8_t v) : m_hue { h }, m_sat { s }, m_val { v } {}
+
+                    /**
+                     * @brief Convert a hue, saturation, and value to RGB
+                     * 
+                     * using a visually balanced rainbow (vs a straight
+                     * mathematical spectrum).
+                     * This 'rainbow' yields better yellow and orange
+                     * than a straight 'spectrum'.
+                     * 
+                     * @note Here hue is 0-255, not just 0-191
+                     * 
+                     * @return Color Converted RGB Color
+                     */
+                    Color rainbow() const;
+
+                    /**
+                     * @brief Convert a hue, saturation, and value to RGB
+                     * 
+                     * Using a mathematically straight spectrum (vs
+                     * a visually balanced rainbow).
+                     * This 'spectrum' will have more green & blue
+                     * than a 'rainbow', and less yellow and orange.
+                     * 
+                     * @note Here hue is 0-255, not just 0-191
+                     * 
+                     * @return Color Converted RGB Color
+                     */
+                    Color spectrum() const;
+
+                    /**
+                     * @brief Convert hue, saturation, and value to RGB.
+                     * 
+                     * This 'spectrum' conversion will be more green & blue
+                     * than a real 'rainbow', and the hue is specified just
+                     * in the range 0-191.  Together, these result in a
+                     * slightly faster conversion speed, at the expense of
+                     * color balance.
+                     * 
+                     * @note Hue is 0-191 only! Saturation & value are 0-255 each.
+                     * 
+                     * @return Color Converted RGB Color
+                     */
+                    Color raw() const;
+
+                    operator Color() const { return rainbow(); }
+
+                private:
+                    uint8_t m_hue;
+                    uint8_t m_sat;
+                    uint8_t m_val;
+            };
 
         private: 
             raw_type m_data;
@@ -149,6 +203,7 @@ namespace LED {
         /// uncorrected color
         UncorrectedColor = Color(0xFF, 0xFF, 0xFF).raw()
     };
+
 
 
 }
