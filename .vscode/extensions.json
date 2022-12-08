@@ -4,5 +4,7 @@
     "chris-hock.pioasm",
     "ms-vscode.cmake-tools",
     "ms-vscode.cpptools",
+    "ms-python.python",
+    "ms-vscode.vscode-serial-monitor",
   ]
 }

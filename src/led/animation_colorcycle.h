@@ -9,7 +9,7 @@ namespace LED::Animation {
     class ColorCycle : public Periodic {
         public:
             ColorCycle(StripBase &strip) : 
-                Periodic { strip, INTERVAL },
+                Periodic { "Anim:Cycle", strip, INTERVAL },
                 m_state { 0 } 
             {
             }

@@ -9,7 +9,7 @@ namespace LED::Animation {
     class Blink : public Periodic {
         public:
             Blink(StripBase &strip, Color color, interval_type interval) : 
-                Periodic { strip, interval },
+                Periodic { "Anim:Blink", strip, interval },
                 m_color { color },
                 m_state { false } 
             {

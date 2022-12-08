@@ -65,6 +65,7 @@ void Robot::init()
     m_imu.init();
     m_display.init();
     m_display_render.init();
+    m_led_render.init();
 
     printf("Init --------- 2\n");
 

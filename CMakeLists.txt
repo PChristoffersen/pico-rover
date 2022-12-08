@@ -9,8 +9,8 @@ set(CMAKE_CXX_STANDARD 17)
 #set(PICO_SDK_PATH "/opt/pico/pico-sdk")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
-include(pico_sdk_import.cmake)
-include(FreeRTOS_Kernel_import.cmake)
+include(cmake/pico_sdk_import.cmake)
+include(cmake/FreeRTOS_Kernel_import.cmake)
 
 project(pico-rover LANGUAGES C CXX ASM)
 
@@ -21,8 +21,8 @@ set(PICO_BOARD pico)
 pico_sdk_init()
 
 
-include(image_generate.cmake)
-include(font_generate.cmake)
+include(cmake/image_generate.cmake)
+include(cmake/font_generate.cmake)
 
 
 add_executable(${PROJECT_NAME} 

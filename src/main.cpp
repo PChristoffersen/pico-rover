@@ -209,7 +209,7 @@ static void init()
             servos[1].put((-mapping.s2()).asServoPulse());
             drive_wheels(mapping);
         }
-        robot.led_render().set_mode(static_cast<uint>(mapping.sc()));
+        //robot.led_render().set_mode(static_cast<uint>(mapping.sc()));
     });
     #endif
 

@@ -26,7 +26,7 @@ static constexpr uint RADIO_RECEIVER_BAUD_RATE { 460800 };
 #define LED_STRIP_PIO                       pio0
 static constexpr uint LED_STRIP_PIN         { 19 };
 static constexpr bool LED_STRIP_IS_RGBW     { false };
-static constexpr uint LED_STRIP_PIXEL_COUNT { 8 };
+static constexpr uint LED_STRIP_PIXEL_COUNT { 2*24 };
 
 /* Battery */
 #define BATTERY_TYPE LIPO_2CELL

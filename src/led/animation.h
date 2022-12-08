@@ -2,6 +2,7 @@
 
 #include <pico/stdlib.h>
 #include <rtos.h>
+#include <string_view>
 
 #include "strip.h"
 
@@ -23,8 +24,9 @@ namespace LED::Animation {
         public:
             using interval_type = uint32_t;
 
-            Periodic(StripBase &strip, interval_type interval) :
+            Periodic(std::string_view name, StripBase &strip, interval_type interval) :
                 Base { strip },
+                m_name { name },
                 m_interval { interval },
                 m_task { nullptr },
                 m_mutex { nullptr }
@@ -44,7 +46,7 @@ namespace LED::Animation {
             {
                 xSemaphoreTake(m_mutex, portMAX_DELAY);
                 do_update();
-                xTaskCreateStatic([](auto args) { reinterpret_cast<Periodic*>(args)->run(); }, "Anim", TASK_STACK_SIZE, this, LED_ANIMATION_TASK_PRIORITY, m_task_stack, &m_task_buf);
+                xTaskCreate([](auto args) { reinterpret_cast<Periodic*>(args)->run(); }, m_name.data(), TASK_STACK_SIZE, this, LED_ANIMATION_TASK_PRIORITY, &m_task);
                 xSemaphoreGive(m_mutex);
             }
             virtual void stop() override
@@ -57,6 +59,7 @@ namespace LED::Animation {
             }
 
         protected:
+            std::string_view m_name;
             interval_type m_interval;
             TaskHandle_t m_task;
             SemaphoreHandle_t m_mutex;
@@ -65,8 +68,6 @@ namespace LED::Animation {
 
         private:
             static constexpr uint TASK_STACK_SIZE { configMINIMAL_STACK_SIZE };
-            StaticTask_t m_task_buf;
-            StackType_t m_task_stack[TASK_STACK_SIZE];
             StaticSemaphore_t m_mutex_buf;
 
             inline void run() 

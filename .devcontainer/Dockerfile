@@ -23,10 +23,27 @@ RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
 #     && apt-get -y install --no-install-recommends <your-package-list-here>
 
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends cmake build-essential wget ca-certificates \
-    python3-pil fontconfig fonts-liberation2 \
-    gdb-multiarch automake autoconf libtool libftdi-dev libusb-1.0-0-dev pkg-config clang-format \
-    gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-dev libstdc++-arm-none-eabi-newlib
+    && apt-get -y install --no-install-recommends \
+        cmake \
+        build-essential \
+        wget \
+        ca-certificates \
+        python3-pil \ 
+        fontconfig \
+        fonts-liberation2 \
+        ninja-build \
+        gdb-multiarch \
+        automake \
+        autoconf \
+        libtool \
+        libftdi-dev \
+        libusb-1.0-0-dev \
+        pkg-config \
+        clang-format \
+        gcc-arm-none-eabi \
+        libnewlib-arm-none-eabi \
+        libstdc++-arm-none-eabi-dev \
+        libstdc++-arm-none-eabi-newlib
 
 # Install Pico SDK
 COPY ./reinstall-pico-sdk.sh /tmp/

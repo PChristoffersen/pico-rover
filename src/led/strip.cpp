@@ -30,6 +30,8 @@ void __isr StripBase::dma_complete_handler()
         if (strip && dma_irqn_get_channel_status(m_dma_irq_index, strip->m_dma)) {
             dma_irqn_acknowledge_channel(m_dma_irq_index, strip->m_dma);
 
+            //printf("LED DmaComplete\n");
+
             assert(strip->m_reset_alarm==0);
             if (strip->m_reset_alarm) {
                 cancel_alarm(strip->m_reset_alarm);
@@ -149,12 +151,15 @@ void StripBase::base_init(volatile void *dma_addr, size_t dma_count)
 void StripBase::show()
 {
     // Wait for previous grace period to complete
+    //printf("LED WaitSem\n");
     xSemaphoreTake(m_reset_sem, portMAX_DELAY);
 
     // Call sub-class function top copy pixel data into dma buffer
+    //printf("LED COPY\n");
     copy_buffer();
 
     // Start transfer    
+    //printf("LED Start\n");
     dma_channel_set_read_addr(m_dma, m_dma_addr, true);
 }
 
