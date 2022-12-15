@@ -8,8 +8,8 @@ namespace LED::Animation {
 
     class Blink : public Periodic {
         public:
-            Blink(StripBase &strip, Color color, interval_type interval) : 
-                Periodic { "Anim:Blink", strip, interval },
+            Blink(layer_type &layer, Color::RGB color, interval_type interval) : 
+                Periodic { "Anim:Blink", layer, interval },
                 m_color { color },
                 m_state { false } 
             {
@@ -20,16 +20,16 @@ namespace LED::Animation {
             virtual void do_update() override 
             {
                 if (m_state)
-                    m_strip.fill(m_color);
+                    m_layer.fill(m_color);
                 else
-                    m_strip.fill(Color::BLACK);
-                m_strip.show();
+                    m_layer.fill(Color::RGB::BLACK);
+                m_layer.setDirty(true);
 
                 m_state = !m_state;
             }
 
         private:
-            Color m_color;
+            Color::RGB m_color;
             bool m_state;
 
 

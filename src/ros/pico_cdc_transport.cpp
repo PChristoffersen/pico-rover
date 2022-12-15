@@ -1,6 +1,7 @@
 #include "pico_cdc_transport.h"
 
 #include <algorithm>
+#include <rtos.h>
 #include <pico/stdlib.h>
 #include <tusb.h>
 #include <rtos.h>

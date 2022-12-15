@@ -23,8 +23,12 @@
  *
  */
 
-#include "tusb.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wtype-limits"
+#include <tusb.h>
 #include <pico/unique_id.h>
+#pragma GCC diagnostic pop
 
 /* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
  * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
@@ -191,3 +195,4 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid)
 
     return _desc_str;
 }
+

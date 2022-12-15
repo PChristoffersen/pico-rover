@@ -58,7 +58,7 @@ StripBase::StripBase(PIO pio, uint pin, bool is_rgbw):
     m_pin { pin },
     m_is_rgbw { is_rgbw },
     m_correction { Color::Correction::TypicalLEDStrip },
-    m_brightness { Color::BRIGHTNESS_DEFAULT }
+    m_brightness { Color::ColorBase::BRIGHTNESS_DEFAULT }
 {
     assert(m_pio==nullptr || pio==m_pio); // Dont allow different PIO instances on different strips
     if (m_pio==nullptr) {
@@ -121,7 +121,6 @@ void StripBase::base_init(volatile void *dma_addr, size_t dma_count)
 
     // Setup DMA
     m_dma = dma_claim_unused_channel(true);
-    m_dma_addr = dma_addr;
 
     dma_channel_config config = dma_channel_get_default_config(m_dma);
     channel_config_set_dreq(&config, pio_get_dreq(m_pio, m_sm, true)); 
@@ -147,21 +146,6 @@ void StripBase::base_init(volatile void *dma_addr, size_t dma_count)
 
 }
 
-
-void StripBase::show()
-{
-    // Wait for previous grace period to complete
-    //printf("LED WaitSem\n");
-    xSemaphoreTake(m_reset_sem, portMAX_DELAY);
-
-    // Call sub-class function top copy pixel data into dma buffer
-    //printf("LED COPY\n");
-    copy_buffer();
-
-    // Start transfer    
-    //printf("LED Start\n");
-    dma_channel_set_read_addr(m_dma, m_dma_addr, true);
-}
 
 
 }

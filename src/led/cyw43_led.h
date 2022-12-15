@@ -1,6 +1,6 @@
 /**
  * @author Peter Christoffersen
- * @brief Single LED control 
+ * @brief CYW43 LED control 
  * @date 2022-07-24
  * 
  * @copyright Copyright (c) 2022
@@ -10,20 +10,19 @@
 
 #include <stdio.h>
 #include <pico/stdlib.h>
-
 #include <rtos.h>
 
-
+#ifdef RASPBERRYPI_PICO_W
 
 namespace LED {
 
-    class Single {
+    class CYW43Led {
         public:
             static constexpr int64_t DEFAULT_BLINK_INTERVAL_MS = 500u;
 
-            Single(uint pin);
-            Single(const Single&) = delete; // No copy constructor
-            Single(Single&&) = delete; // No move constructor
+            CYW43Led(uint pin);
+            CYW43Led(const CYW43Led&) = delete; // No copy constructor
+            CYW43Led(CYW43Led&&) = delete; // No move constructor
 
             void init();
 
@@ -53,3 +52,4 @@ namespace LED {
     };
 
 }
+#endif

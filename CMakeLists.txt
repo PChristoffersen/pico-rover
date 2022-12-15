@@ -3,27 +3,34 @@ cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
- 
+
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
 #set(PICO_SDK_PATH "/opt/pico/pico-sdk")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(cmake/pico_sdk_import.cmake)
+if(NOT PICO_PLATFORM STREQUAL "host")
 include(cmake/FreeRTOS_Kernel_import.cmake)
+else()
+include(cmake/FreeRTOS_Kernel_posix.cmake)
+endif()
+include(cmake/image_generate.cmake)
+include(cmake/font_generate.cmake)
+
 
 project(pico-rover LANGUAGES C CXX ASM)
 
 set(PICO_BOARD pico)
 #set(PICO_BOARD pico_w)
 
+
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 
-include(cmake/image_generate.cmake)
-include(cmake/font_generate.cmake)
 
+if(NOT PICO_PLATFORM STREQUAL "host")
 
 add_executable(${PROJECT_NAME} 
     src/main.cpp
@@ -32,10 +39,13 @@ add_executable(${PROJECT_NAME}
     src/rtos.c
     src/usb_descriptors.c
     src/usb_device.c
+    src/wifi.c
+    src/led/color.cpp
     src/led/color_hsv.cpp
+    src/led/colorlayer.cpp
     src/led/control.cpp
-    src/led/dummy.cpp
-    src/led/single.cpp
+    src/led/cyw43_led.cpp
+    src/led/gpio_led.cpp
     src/led/strip.cpp
     src/motor/dcmotor.cpp
     src/motor/encoder.cpp
@@ -64,7 +74,7 @@ pico_set_program_version(${PROJECT_NAME} "0.1")
 
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unused-parameter  -Wno-unused-variable)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unused-parameter  -Wno-unused-variable  -Wno-type-limits)
     pico_enable_stdio_usb(${PROJECT_NAME} 0)
     pico_enable_stdio_semihosting(${PROJECT_NAME} 0)
     pico_enable_stdio_uart(${PROJECT_NAME} 0)
@@ -89,12 +99,12 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_UART_RX_PIN=17)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SDA_PIN=21)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SCL_PIN=20)
 
-
 set_source_files_properties(
-				${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/include/portmacro.h
-				PROPERTIES
-				COMPILE_FLAGS "-Wno-type-limits")
-
+                ${FREERTOS_KERNEL_PATH}/tasks.c
+                ${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/port.c
+                PROPERTIES
+                COMPILE_FLAGS "-Wno-sign-compare -Wno-type-limits")
+    
 set_source_files_properties(
                 ${PICO_TINYUSB_PATH}/hw/bsp/rp2040/family.c
                 ${PICO_TINYUSB_PATH}/src/tusb.c
@@ -168,3 +178,13 @@ target_link_libraries(${PROJECT_NAME} microros)
 
 
 pico_add_extra_outputs(${PROJECT_NAME})
+
+else() # PICO_PLATFORM == HOST
+
+enable_testing() 
+
+add_subdirectory(test)
+
+endif()
+
+

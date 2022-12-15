@@ -1,0 +1,40 @@
+if (DEFINED ENV{FREERTOS_KERNEL_PATH} AND (NOT FREERTOS_KERNEL_PATH))
+    set(FREERTOS_KERNEL_PATH $ENV{FREERTOS_KERNEL_PATH})
+    message("Using FREERTOS_KERNEL_PATH from environment ('${FREERTOS_KERNEL_PATH}')")
+endif ()
+
+set(FREERTOS_KERNEL_POSIX_RELATIVE_PATH "portable/ThirdParty/GCC/Posix")
+
+
+
+if (NOT FREERTOS_KERNEL_PATH)
+    message(FATAL_ERROR "FreeRTOS location was not specified. Please set FREERTOS_KERNEL_PATH.")
+endif()
+
+set(FREERTOS_KERNEL_PATH "${FREERTOS_KERNEL_PATH}" CACHE PATH "Path to the FreeRTOS Kernel")
+
+get_filename_component(FREERTOS_KERNEL_PATH "${FREERTOS_KERNEL_PATH}" REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
+if (NOT EXISTS ${FREERTOS_KERNEL_PATH})
+    message(FATAL_ERROR "Directory '${FREERTOS_KERNEL_PATH}' not found")
+endif()
+if (NOT EXISTS ${FREERTOS_KERNEL_PATH}/${FREERTOS_KERNEL_POSIX_RELATIVE_PATH}/portmacro.h)
+    message(FATAL_ERROR "Directory '${FREERTOS_KERNEL_PATH}' does not contain an Posix port here: ${FREERTOS_KERNEL_POSIX_RELATIVE_PATH}")
+endif()
+set(FREERTOS_KERNEL_PATH ${FREERTOS_KERNEL_PATH} CACHE PATH "Path to the FreeRTOS_KERNEL" FORCE)
+
+
+add_library(FreeRTOS-Kernel STATIC
+    ${FREERTOS_KERNEL_PATH}/list.c
+    ${FREERTOS_KERNEL_PATH}/queue.c
+    ${FREERTOS_KERNEL_PATH}/tasks.c
+    ${FREERTOS_KERNEL_PATH}/timers.c
+    ${FREERTOS_KERNEL_PATH}/portable/MemMang/heap_3.c
+    ${FREERTOS_KERNEL_PATH}/${FREERTOS_KERNEL_POSIX_RELATIVE_PATH}/port.c
+    ${FREERTOS_KERNEL_PATH}/${FREERTOS_KERNEL_POSIX_RELATIVE_PATH}/utils/wait_for_event.c
+)
+target_compile_definitions(FreeRTOS-Kernel PRIVATE PICO_NO_HARDWARE=1)
+target_include_directories(FreeRTOS-Kernel PUBLIC ${FREERTOS_KERNEL_PATH}/include)
+target_include_directories(FreeRTOS-Kernel PUBLIC ${FREERTOS_KERNEL_PATH}/${FREERTOS_KERNEL_POSIX_RELATIVE_PATH})
+target_include_directories(FreeRTOS-Kernel PUBLIC ${CMAKE_SOURCE_DIR}/src)
+
+

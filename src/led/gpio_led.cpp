@@ -1,4 +1,4 @@
-#include "single.h"
+#include "gpio_led.h"
 
 #include <stdio.h>
 #include <pico/stdlib.h>
@@ -7,7 +7,7 @@
 
 namespace LED {
 
-Single::Single(uint pin) :
+GPIOLed::GPIOLed(uint pin) :
     m_task { nullptr },
     m_pin { pin },
     m_blinking { false },
@@ -19,7 +19,7 @@ Single::Single(uint pin) :
 }
 
 
-void Single::set(bool on)
+void GPIOLed::set(bool on)
 {
     xSemaphoreTake(m_mutex, portMAX_DELAY);
     m_state = on;
@@ -32,7 +32,7 @@ void Single::set(bool on)
 }
 
 
-inline void Single::run()
+inline void GPIOLed::run()
 {
     while (true) {
         xSemaphoreTake(m_mutex, portMAX_DELAY);
@@ -46,13 +46,13 @@ inline void Single::run()
 
 
 
-void Single::init()
+void GPIOLed::init()
 {
     gpio_init(m_pin);
     gpio_set_dir(m_pin, GPIO_OUT);
     gpio_put(m_pin, true);
 
-    m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<Single*>(arg)->run(); }, "LED", TASK_STACK_SIZE, this, LED_BLINK_TASK_PRIORITY, m_task_stack, &m_task_buf);
+    m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<GPIOLed*>(arg)->run(); }, "LED", TASK_STACK_SIZE, this, LED_BLINK_TASK_PRIORITY, m_task_stack, &m_task_buf);
     configASSERT(m_task);
     vTaskSuspend(m_task);
     m_blinking = false;
@@ -60,7 +60,7 @@ void Single::init()
 
 
 
-void Single::blink()
+void GPIOLed::blink()
 {
     xSemaphoreTake(m_mutex, portMAX_DELAY);
     if (m_blinking) 

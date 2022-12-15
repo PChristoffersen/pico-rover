@@ -10,6 +10,7 @@
 
 #include "boardconfig.h"
 #include "usb_device.h"
+#include "wifi.h"
 #include "robot.h"
 #include "watchdog/watchdog.h"
 #include "util/time.h"
@@ -30,10 +31,8 @@ static ROS::Client ros;
 #define USE_RADIO
 
 #if 1
-static void drive_wheels(const Radio::FrSky::TaranisX9DPlus &mapping) {
-    auto stick_x = -mapping.right_x().asFloat();
-    auto stick_y =  mapping.right_y().asFloat();
-    auto rotate  =  mapping.left_x().asFloat();
+static void drive_wheels(float stick_x, float stick_y, float rotate) {
+    stick_x = -stick_x;
 
     float duty_fl, duty_fr, duty_rl, duty_rr;
 
@@ -207,7 +206,7 @@ static void init()
             //servos[1].put(mapping.right_x().asServoPulse());
             servos[0].put((-mapping.s1()).asServoPulse());
             servos[1].put((-mapping.s2()).asServoPulse());
-            drive_wheels(mapping);
+            drive_wheels(mapping.right_x().asFloat(), mapping.right_y().asFloat(), mapping.left_x().asFloat());
         }
         //robot.led_render().set_mode(static_cast<uint>(mapping.sc()));
     });
@@ -269,6 +268,10 @@ int main()
     robot.init();
     ros.init();
     init();
+
+    #ifdef RASPBERRYPI_PICO_W
+    wifi_init();
+    #endif
 
     // All subsystems running
     wait_cdc();

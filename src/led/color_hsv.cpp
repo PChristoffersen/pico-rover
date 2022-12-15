@@ -52,7 +52,7 @@ static constexpr inline uint8_t scale8_video(uint8_t i, uint8_t scale)
 }
 
 
-Color Color::HSV::rainbow() const
+Color::HSV::raw_type Color::HSV::rainbow() const
 {
     constexpr auto K255 { 255 };
     constexpr auto K171 { 171 };
@@ -228,11 +228,11 @@ Color Color::HSV::rainbow() const
         }
     }
     
-    return Color { r, g, b };
+    return raw_rgb(r, g, b);
 }
 
 
-Color Color::HSV::spectrum() const
+Color::HSV::raw_type Color::HSV::spectrum() const
 {
     HSV hsv { scale8(m_hue, 191), m_sat, m_val };
     return hsv.raw();
@@ -241,7 +241,7 @@ Color Color::HSV::spectrum() const
 
 #define APPLY_DIMMING(X) (X)
 
-Color Color::HSV::raw() const 
+Color::HSV::raw_type Color::HSV::raw() const 
 {
     //constexpr auto HSV_SECTION_6 { 0x20 };
     constexpr auto HSV_SECTION_3 { 0x40 };
@@ -329,7 +329,7 @@ Color Color::HSV::raw() const
         b = brightness_floor;
     }
 
-    return Color( r, g, b );
+    return raw_rgb(r, g, b);
 }
 
 }

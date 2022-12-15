@@ -27,6 +27,7 @@
 #define ADC_TASK_PRIORITY   		        ( tskIDLE_PRIORITY + 4UL )
 #define INA_TASK_PRIORITY   		        ( tskIDLE_PRIORITY + 4UL )
 
+#define LED_TASK_PRIORITY  				    ( tskIDLE_PRIORITY + 3UL )
 #define DISPLAY_TASK_PRIORITY  				( tskIDLE_PRIORITY + 2UL )
 #define LED_ANIMATION_TASK_PRIORITY    		( tskIDLE_PRIORITY + 2UL )
 #define LED_BLINK_TASK_PRIORITY				( tskIDLE_PRIORITY + 1UL )

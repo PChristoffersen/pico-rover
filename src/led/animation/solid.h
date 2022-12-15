@@ -8,23 +8,23 @@ namespace LED::Animation {
 
     class Solid : public Base {
         public:
-            Solid(StripBase &strip, Color color) : 
-                Base { strip },
+            Solid(layer_type &layer, Color::RGBA color) : 
+                Base { layer },
                 m_color { color }
             {
             }
 
             virtual void start() override 
             {
-                m_strip.fill(m_color);
-                m_strip.show();
+                m_layer.fill(m_color);
+                m_layer.setDirty(true);
             }
             virtual void stop() override
             {                
             }
 
         private:
-            Color m_color;
+            Color::RGBA m_color;
 
     };
 

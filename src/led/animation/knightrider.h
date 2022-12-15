@@ -6,8 +6,8 @@ namespace LED::Animation {
 
     class KnightRider : public Periodic {
         public:
-            KnightRider(StripBase &strip, uint start, uint stop) : 
-                Periodic { "Anim:Knight", strip, INTERVAL },
+            KnightRider(layer_type &layer, uint start, uint stop) : 
+                Periodic { "Anim:Knight", layer, INTERVAL },
                 m_start { start },
                 m_stop { stop },
                 m_pos { 0 }, 
@@ -19,9 +19,10 @@ namespace LED::Animation {
 
             virtual void do_update() override 
             {
-                m_strip.fill(Color::BLACK);
-                m_strip[m_start+m_pos] = COLOR;
-                m_strip.show();
+                m_layer.fill(Color::RGB::BLACK);
+                m_layer[m_start+m_pos] = COLOR;
+                m_layer.setDirty(true);
+
                 m_pos += m_dir;
                 if (m_pos>=static_cast<int>(m_stop-m_start-1)) {
                     m_pos = m_stop-m_start-1;
@@ -34,8 +35,8 @@ namespace LED::Animation {
             }
 
         private:
-            static constexpr interval_type INTERVAL { 150000 };
-            static constexpr Color COLOR { Color::RED * 0.1 };
+            static constexpr interval_type INTERVAL { 50 };
+            static constexpr Color::RGBA COLOR { Color::RGB::RED * 0.1 };
             const uint m_start;
             const uint m_stop;
             int m_pos;

@@ -8,8 +8,8 @@ namespace LED::Animation {
 
     class Chase : public Periodic {
         public:
-            Chase(StripBase &strip) : 
-                Periodic { "Anim:Chase", strip, INTERVAL },
+            Chase(layer_type &layer) : 
+                Periodic { "Anim:Chase", layer, INTERVAL },
                 m_pos { 0 },
                 m_color_num { 0 }
             {
@@ -19,12 +19,12 @@ namespace LED::Animation {
 
             virtual void do_update() override 
             {
-                const uint len = m_strip.length();
+                const uint len = m_layer.size();
 
-                m_strip.fill(Color::BLACK);
-                m_strip[m_pos] = COLORS[m_color_num];
-                m_strip[m_pos+len/2] = COLORS[m_color_num];
-                m_strip.show();
+                m_layer.fill(Color::RGB::BLACK);
+                m_layer[m_pos] = COLORS[m_color_num];
+                m_layer[m_pos+len/2] = COLORS[m_color_num];
+                m_layer.setDirty(true);
 
                 m_pos++;
                 if (m_pos >= len/2) {
@@ -35,10 +35,10 @@ namespace LED::Animation {
 
         private:
             static constexpr interval_type INTERVAL { 50 };
-            static constexpr Color COLORS[] {
-                Color::RED,
-                Color::GREEN,
-                Color::BLUE,
+            static constexpr Color::RGBW COLORS[] {
+                Color::RGB::RED,
+                Color::RGB::GREEN,
+                Color::RGB::BLUE,
             };
             uint m_pos;
             uint m_color_num;

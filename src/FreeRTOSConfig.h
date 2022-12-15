@@ -69,7 +69,12 @@
 #define configMESSAGE_BUFFER_LENGTH_TYPE        size_t
 
 /* Memory allocation related definitions. */
+#if !PICO_NO_HARDWARE
+#error Yikes
 #define configSUPPORT_STATIC_ALLOCATION         1
+#else
+#define configSUPPORT_STATIC_ALLOCATION         0
+#endif
 #define configSUPPORT_DYNAMIC_ALLOCATION        1
 #define configTOTAL_HEAP_SIZE                   (128*1024)
 #define configAPPLICATION_ALLOCATED_HEAP        0
@@ -80,7 +85,11 @@
 #define configUSE_DAEMON_TASK_STARTUP_HOOK      0
 
 /* Run time and task stats gathering related definitions. */
-#ifndef NDEBUG
+#if defined(NDEBUG) || PICO_NO_HARDWARE
+#define configGENERATE_RUN_TIME_STATS           0
+#define configUSE_TRACE_FACILITY                1
+#define configUSE_STATS_FORMATTING_FUNCTIONS    0
+#else
 void do_init_time();
 uint32_t do_get_time();
 #define configGENERATE_RUN_TIME_STATS           1
@@ -88,10 +97,6 @@ uint32_t do_get_time();
 #define portGET_RUN_TIME_COUNTER_VALUE()        do_get_time()
 #define configUSE_TRACE_FACILITY                1
 #define configUSE_STATS_FORMATTING_FUNCTIONS    1
-#else
-#define configGENERATE_RUN_TIME_STATS           0
-#define configUSE_TRACE_FACILITY                1
-#define configUSE_STATS_FORMATTING_FUNCTIONS    0
 #endif
 
 /* Co-routine related definitions. */
@@ -147,6 +152,7 @@ to exclude the API function. */
 #define INCLUDE_xQueueGetMutexHolder            1
 
 /* A header file that defines trace macro can be included here. */
+
 
 #endif /* FREERTOS_CONFIG_H */
 

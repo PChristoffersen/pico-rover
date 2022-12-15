@@ -17,18 +17,19 @@
 #include <rtos.h>
 
 #include "color.h"
+#include "colorbuffer.h"
 
 namespace LED {
 
     class StripBase {
         public: 
-            void show();
+            virtual void show() = 0;
 
-            virtual void fill(Color color) = 0;
+            virtual void fill(Color::RGB color) = 0;
             virtual size_t length() const = 0;
 
-            virtual Color &operator[](size_t n) = 0;
-            virtual const Color &operator[](size_t n) const = 0;
+            virtual Color::RGB &operator[](size_t n) = 0;
+            virtual const Color::RGB &operator[](size_t n) const = 0;
 
         protected:
             using pixel_type = uint32_t;
@@ -45,7 +46,6 @@ namespace LED {
 
             uint m_sm;
             uint m_dma;
-            volatile void *m_dma_addr;
 
             alarm_id_t m_reset_alarm;
             StaticSemaphore_t m_reset_sem_buf;
@@ -65,7 +65,19 @@ namespace LED {
             static void global_add_strip(StripBase *strip);     
             static void __isr dma_complete_handler();
 
-            virtual void copy_buffer() = 0;
+            inline void dma_wait()
+            {
+                // Wait for previous grace period to complete
+                //printf("LED WaitSem\n");
+                xSemaphoreTake(m_reset_sem, portMAX_DELAY);
+            }
+
+            inline void dma_start(const volatile void *addr)
+            {
+                // Start transfer    
+                //printf("LED Start\n");
+                dma_channel_set_read_addr(m_dma, addr, true);
+            }
     };
 
 
@@ -81,35 +93,76 @@ namespace LED {
                 base_init(m_dma_buffer, NCOLORS);
 
                 // Show initial
-                fill(Color::BLACK);
-                show();
+                show_single(Color::RGB::BLACK);
             }
 
-            virtual void fill(Color color) override { m_color_buffer.fill(color); }
-            virtual size_t length() const override { return NCOLORS; }
-
-            virtual Color &operator[](size_t n) override { return m_color_buffer[n]; }
-            virtual const Color &operator[](size_t n) const override { return m_color_buffer[n]; }
-
-
-        private:
-            using color_array_type = std::array<Color, NCOLORS>;
-
-            color_array_type m_color_buffer;
-            volatile pixel_type m_dma_buffer[NCOLORS];
-
-            void copy_buffer() 
+            template<typename COLOR_TYPE>
+            void show_single(const COLOR_TYPE color) 
             {
-                // Copy color data to dma buffer
-                uint idx = 0;
-                for (const Color &color : m_color_buffer) {
+                dma_wait();
+
+                // Call sub-class function top copy pixel data into dma buffer
+                //printf("LED COPY\n");
+                for (uint idx=0; idx<NCOLORS; idx++) {
                     auto c = color;
                     c *= (m_brightness*m_brightness); // Use brightness ^2 to make the perceived brightness seem more linear
                     c *= m_correction;
                     m_dma_buffer[idx++] = c.rgb()<<8 | c.white();
                 }
 
+                dma_start(m_dma_buffer);
             }
+
+            template<typename COLOR_BUFFER>
+            void show(const COLOR_BUFFER &color_buffer)
+            {
+                assert(color_buffer.size()<=NCOLORS);
+
+                dma_wait();
+
+                // Call sub-class function top copy pixel data into dma buffer
+                //printf("LED COPY\n");
+                uint idx = 0;
+                for (const auto &color : color_buffer) {
+                    auto c = color;
+                    c *= (m_brightness*m_brightness); // Use brightness ^2 to make the perceived brightness seem more linear
+                    c *= m_correction;
+                    m_dma_buffer[idx++] = c.rgb()<<8 | c.white();
+                }
+
+                dma_start(m_dma_buffer);
+            }
+
+            void show() override 
+            {
+                dma_wait();
+
+                // Call sub-class function top copy pixel data into dma buffer
+                //printf("LED COPY\n");
+                uint idx = 0;
+                for (const auto &color : m_color_buffer) {
+                    auto c = color;
+                    c *= (m_brightness*m_brightness); // Use brightness ^2 to make the perceived brightness seem more linear
+                    c *= m_correction;
+                    m_dma_buffer[idx++] = c.rgb()<<8 | c.white();
+                }
+
+                dma_start(m_dma_buffer);
+            }
+
+            virtual void fill(Color::RGB color) override { m_color_buffer.fill(color); }
+            virtual size_t length() const override { return NCOLORS; }
+
+            virtual Color::RGB &operator[](size_t n) override { return m_color_buffer[n]; }
+            virtual const Color::RGB &operator[](size_t n) const override { return m_color_buffer[n]; }
+
+
+        private:
+            using color_array_type = std::array<Color::RGB, NCOLORS>;
+
+            color_array_type m_color_buffer;
+            volatile pixel_type m_dma_buffer[NCOLORS];
+
     };
 
 }

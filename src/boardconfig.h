@@ -3,9 +3,11 @@
 
 #include <limits.h>
 #include <pico/stdlib.h>
-#include <hardware/pio.h>
 #include <hardware/uart.h>
+#if !PICO_NO_HARDWARE
 #include <hardware/i2c.h>
+#include <hardware/pio.h>
+#endif
 
 
 /* Servo */

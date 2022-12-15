@@ -8,8 +8,8 @@ namespace LED::Animation {
 
     class ColorCycle : public Periodic {
         public:
-            ColorCycle(StripBase &strip) : 
-                Periodic { "Anim:Cycle", strip, INTERVAL },
+            ColorCycle(layer_type &layer) : 
+                Periodic { "Anim:Cycle", layer, INTERVAL },
                 m_hue { 0 } 
             {
             }
@@ -18,12 +18,11 @@ namespace LED::Animation {
 
             virtual void do_update() override 
             {
-                const uint len = m_strip.length();
+                const uint len = m_layer.size();
                 for (auto i=0u; i<len; i++) {
-                    m_strip[i] = Color::HSV { static_cast<std::uint8_t>(m_hue + i), 255u, 255u };
+                    m_layer[i] = Color::HSV { static_cast<std::uint8_t>(m_hue + i), 255u, 255u };
                 }
-                m_strip.show();
-
+                m_layer.setDirty(true);
                 m_hue++;
             }
 

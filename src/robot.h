@@ -7,8 +7,8 @@
 #include <sensor/bno0055.h>
 #include <motor/dcmotor.h>
 #include <motor/servo.h>
-#include <led/dummy.h>
-#include <led/single.h>
+#include <led/gpio_led.h>
+#include <led/cyw43_led.h>
 #include <radio/frsky_receiver.h>
 
 #include <telemetry/provider.h>

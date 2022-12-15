@@ -1,0 +1,20 @@
+buildType:
+  default: debug
+  choices:
+    debug:
+      short: Debug
+      long: Emit debug information
+      buildType: Debug
+    release:
+      short: Release
+      long: Optimize generated code
+      buildType: Release
+    host:
+      short: Host
+      long: Test build for host machine
+      buildType: Debug
+      settings:
+        PICO_PLATFORM: host
+      # TODO
+        FREERTOS_KERNEL_PATH: /opt/pico/FreeRTOS-Kernel
+

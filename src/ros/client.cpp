@@ -40,11 +40,11 @@ void Client::init()
     rmw_uros_set_custom_transport(
         true,
         m_buffer,
-        #ifdef RASPBERRYPI_PICO_W
-        pico_tcp_transport_open,
-        pico_tcp_transport_close,
-        pico_tcp_transport_write,
-        pico_tcp_transport_read
+        #ifdef RASPBERRYPI_PICO_W__
+        pico_cdc_transport_open,
+        pico_cdc_transport_close,
+        pico_cdc_transport_write,
+        pico_cdc_transport_read
         #else
         pico_cdc_transport_open,
         pico_cdc_transport_close,
@@ -66,7 +66,7 @@ inline void Client::transport_connect()
 
 inline bool Client::transport_is_connected()
 {
-    #ifdef RASPBERRYPI_PICO_W
+    #ifdef RASPBERRYPI_PICO_W__
     return pico_tcp_transport_connected();
     #else
     return pico_cdc_transport_connected();
