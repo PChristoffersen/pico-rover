@@ -35,6 +35,7 @@ namespace OLED {
             Display &display() { return m_display; }
 
         private:
+            using framebuffer_type = Framebuffer128x64;
             static constexpr uint TASK_STACK_SIZE    { configMINIMAL_STACK_SIZE };
             static constexpr uint UPDATE_INTERVAL_MS { 100u };
 
@@ -43,7 +44,7 @@ namespace OLED {
             static constexpr uint RADIO_INTERVAL_MS   { 500u };
 
             Display m_display;
-            Framebuffer &m_framebuffer;
+            framebuffer_type &m_framebuffer;
 
             Robot &m_robot;
 

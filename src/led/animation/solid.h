@@ -14,10 +14,10 @@ namespace LED::Animation {
             {
             }
 
-            virtual void start() override 
+            virtual void start(TickType_t now) override 
             {
                 m_layer.fill(m_color);
-                m_layer.setDirty(true);
+                m_layer.dirty();
             }
             virtual void stop() override
             {                

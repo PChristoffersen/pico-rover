@@ -56,13 +56,9 @@ void Robot::init()
     m_battery_sensor.init();
     m_imu.init();
 
-    //printf("Init --------- 2\n");
-
     m_receiver.init();
     m_telemetry_provider.init();
     m_receiver.set_telemetry_provider(&m_telemetry_provider);
-
-    //printf("Init --------- 3\n");
 
     // Register callbacks
 

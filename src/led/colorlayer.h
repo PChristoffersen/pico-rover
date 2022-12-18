@@ -8,28 +8,28 @@ namespace LED::Color {
 
     class LayerBase {
         public:
-            LayerBase() : LayerBase(0) {}
-            LayerBase(size_t offset);
+            LayerBase() : 
+                m_dirty { false },
+                m_visible { false }
+            {}
 
-            bool dirty() const { return m_dirty; }
-            void setDirty(bool dirty) { m_dirty = dirty; }
+            bool is_dirty() const { return m_dirty; }
+            void set_dirty(bool dirty) { m_dirty = dirty; }
+            void dirty() { set_dirty(true); }
+            void clear_dirty() { set_dirty(false); }
 
-            bool visible() const { return m_visible; }
-            void setVisible(bool visible) { m_visible = visible; }
-
-            size_t offset() const { return m_offset; }
+            bool is_visible() const { return m_visible; }
+            void set_visible(bool visible) { m_visible = visible; }
 
         private:
             bool m_dirty;
             bool m_visible;
-            size_t m_offset;
     };
 
     template<typename ColorType, size_t NCOLORS>
     class Layer : public LayerBase, public Buffer<ColorType, NCOLORS> {
         public:
             Layer() : LayerBase { } {}
-            Layer(size_t offset) : LayerBase { offset } {}
 
     };
 

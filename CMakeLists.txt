@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
 #set(PICO_SDK_PATH "/opt/pico/pico-sdk")
+#set(FREERTOS_KERNEL_PATH "/opt/pico/FreeRTOS-Kernel-SMP")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(cmake/pico_sdk_import.cmake)
@@ -42,7 +43,6 @@ add_executable(${PROJECT_NAME}
     src/wifi.c
     src/led/color.cpp
     src/led/color_hsv.cpp
-    src/led/colorlayer.cpp
     src/led/control.cpp
     src/led/cyw43_led.cpp
     src/led/gpio_led.cpp
@@ -52,7 +52,6 @@ add_executable(${PROJECT_NAME}
     src/motor/servo.cpp
     src/oled/control.cpp
     src/oled/display.cpp
-    src/oled/framebuffer.cpp
     src/radio/frsky_mapping.cpp
     src/radio/frsky_receiver.cpp
     src/sensor/bno055.cpp
@@ -101,9 +100,11 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SCL_PIN=20)
 
 set_source_files_properties(
                 ${FREERTOS_KERNEL_PATH}/tasks.c
+                ${FREERTOS_KERNEL_PATH}/stream_buffer.c
+                ${FREERTOS_KERNEL_PATH}/event_groups.c
                 ${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/port.c
                 PROPERTIES
-                COMPILE_FLAGS "-Wno-sign-compare -Wno-type-limits")
+                COMPILE_FLAGS "-Wno-sign-compare -Wno-type-limits -Wno-error -Wno-unused")
     
 set_source_files_properties(
                 ${PICO_TINYUSB_PATH}/hw/bsp/rp2040/family.c

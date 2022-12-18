@@ -9,7 +9,7 @@ namespace LED::Animation {
     class Blink : public Periodic {
         public:
             Blink(layer_type &layer, Color::RGB color, interval_type interval) : 
-                Periodic { "Anim:Blink", layer, interval },
+                Periodic { layer, interval },
                 m_color { color },
                 m_state { false } 
             {
@@ -22,8 +22,8 @@ namespace LED::Animation {
                 if (m_state)
                     m_layer.fill(m_color);
                 else
-                    m_layer.fill(Color::RGB::BLACK);
-                m_layer.setDirty(true);
+                    m_layer.fill(Color::RGBA::TRANSPARENT);
+                m_layer.dirty();
 
                 m_state = !m_state;
             }

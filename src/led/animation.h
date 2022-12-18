@@ -17,7 +17,7 @@ namespace LED::Animation {
             Base(layer_type &layer) : m_layer { layer } {}
             virtual ~Base() {}
 
-            virtual void start() = 0;
+            virtual void start(TickType_t now) = 0;
             virtual void stop() {};
             virtual void update(TickType_t now) {}
 
@@ -31,29 +31,27 @@ namespace LED::Animation {
         public:
             using interval_type = TickType_t;
 
-            Periodic(std::string_view name, layer_type &layer, interval_type interval) :
+            Periodic(layer_type &layer, interval_type interval) :
                 Base { layer },
-                m_name { name },
                 m_interval { interval }
             {
             }
 
-            void start()
+            virtual void start(TickType_t now)
             {
-                m_last_update = xTaskGetTickCount();
+                m_last_update = now;
                 do_update();
             }
 
             virtual void update(TickType_t now) override 
             {
-                if (now-m_last_update > pdMS_TO_TICKS(m_interval)) {
+                if (now-m_last_update >= m_interval) {
                     do_update();
-                    m_last_update += pdMS_TO_TICKS(m_interval);
+                    m_last_update += m_interval;
                 }
             }
 
         protected:
-            std::string_view m_name;
             interval_type m_interval;
 
             virtual void do_update() = 0;

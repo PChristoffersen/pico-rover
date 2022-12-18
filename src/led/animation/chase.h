@@ -9,7 +9,7 @@ namespace LED::Animation {
     class Chase : public Periodic {
         public:
             Chase(layer_type &layer) : 
-                Periodic { "Anim:Chase", layer, INTERVAL },
+                Periodic { layer, INTERVAL },
                 m_pos { 0 },
                 m_color_num { 0 }
             {
@@ -21,10 +21,10 @@ namespace LED::Animation {
             {
                 const uint len = m_layer.size();
 
-                m_layer.fill(Color::RGB::BLACK);
+                m_layer.fill(Color::RGBA::TRANSPARENT);
                 m_layer[m_pos] = COLORS[m_color_num];
                 m_layer[m_pos+len/2] = COLORS[m_color_num];
-                m_layer.setDirty(true);
+                m_layer.dirty();
 
                 m_pos++;
                 if (m_pos >= len/2) {

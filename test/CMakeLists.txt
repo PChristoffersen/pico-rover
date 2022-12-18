@@ -2,9 +2,34 @@
 # Tests
 # -----------------------------------------------
 
-add_library(pico_test INTERFACE)
+# Add GTest
+include(FetchContent)
+FetchContent_Declare(
+    googletest
+    DOWNLOAD_EXTRACT_TIMESTAMP
+    URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+include(GoogleTest)
 
-target_include_directories(pico_test INTERFACE ${PICO_SDK_PATH}/test/pico_test/include )
+function(rover_add_test TARGET)
+    set(flags)
+    set(args)
+    set(listArgs SOURCES)
+    cmake_parse_arguments(arg "${flags}" "${args}" "${listArgs}" ${ARGN})
+    add_executable(${TARGET} ${arg_SOURCES})
+    target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(${TARGET} PRIVATE pico_test)
+    pico_add_extra_outputs(${TARGET})
+    gtest_discover_tests(${TARGET})
+endfunction()
+
+
+
+add_library(pico_test INTERFACE)
+target_include_directories(pico_test INTERFACE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(pico_test INTERFACE 
     FreeRTOS-Kernel
     pico_stdlib
@@ -12,18 +37,22 @@ target_link_libraries(pico_test INTERFACE
     hardware_sync
     hardware_gpio
     hardware_uart
+    GTest::gtest_main
 )
 
 
-add_executable(test_dummy test_dummy.cpp)
-target_include_directories(test_dummy PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(test_dummy PRIVATE pico_test)
-add_test(NAME Dummy COMMAND test_dummy)
-pico_add_extra_outputs(test_dummy)
+rover_add_test(test_color SOURCES 
+    test_color.cpp
+    ${CMAKE_SOURCE_DIR}/src/led/color.cpp
+    ${CMAKE_SOURCE_DIR}/src/led/color_hsv.cpp
+)
 
+rover_add_test(test_animation SOURCES 
+    test_animation.cpp
+    ${CMAKE_SOURCE_DIR}/src/led/color.cpp
+    ${CMAKE_SOURCE_DIR}/src/led/color_hsv.cpp
+)
 
-add_executable(test_color test_color.cpp)
-target_include_directories(test_color PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(test_color PRIVATE pico_test)
-add_test(NAME Color COMMAND test_color)
-pico_add_extra_outputs(test_color)
+rover_add_test(test_oled SOURCES 
+    test_oled.cpp
+)

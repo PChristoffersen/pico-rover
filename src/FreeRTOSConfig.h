@@ -70,7 +70,6 @@
 
 /* Memory allocation related definitions. */
 #if !PICO_NO_HARDWARE
-#error Yikes
 #define configSUPPORT_STATIC_ALLOCATION         1
 #else
 #define configSUPPORT_STATIC_ALLOCATION         0

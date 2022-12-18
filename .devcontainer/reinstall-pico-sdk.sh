@@ -16,5 +16,5 @@ git clone -b master https://github.com/raspberrypi/pico-playground.git
 
 git clone -b main https://github.com/FreeRTOS/FreeRTOS-Kernel.git FreeRTOS-Kernel
 cp -a FreeRTOS-Kernel FreeRTOS-Kernel-SMP
-( cd FreeRTOS-Kernel-SMP && git checkout smp )
+( cd FreeRTOS-Kernel && git worktree add ../FreeRTOS-SMP smp )
 

@@ -29,7 +29,18 @@ static constexpr bool debug_build {
 #endif
 
 #ifndef NDEBUG
+#define DEBUG_VAR(X...) X
+#else
+#define DEBUG_VAR(X...)
+#endif
+
+#ifndef NDEBUG
 void debug_i2c_scan_bus();
+#endif
+
+
+#ifndef NDEBUG
+void debug_print_task_state();
 #endif
 
 

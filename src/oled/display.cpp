@@ -182,13 +182,24 @@ void Display::init()
 
 
 
-void Display::update_blocking()
+void Display::update()
 { 
     if (!m_framebuffer.is_dirty() || !m_present) 
         return;
     i2c_bus_acquire_blocking();
     send_data_async();
     m_framebuffer.clear_dirty();
+}
+
+
+void Display::update_sync()
+{
+    if (!m_framebuffer.is_dirty() || !m_present) 
+        return;
+    i2c_bus_acquire_blocking();
+    send_data_sync();
+    m_framebuffer.clear_dirty();
+    i2c_bus_release();
 }
 
 

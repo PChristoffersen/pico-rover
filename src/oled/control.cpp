@@ -64,7 +64,7 @@ inline void Control::run()
         }
 
         if (m_display.update_needed()) {
-            m_display.update_blocking();
+            m_display.update();
         }
         xSemaphoreGive(m_sem);
 
@@ -82,7 +82,7 @@ void Control::init()
 
     if (m_display.present()) {
         m_framebuffer.draw_bitmap((m_framebuffer.width()-Resource::Image::Raspberry_Logo.width())/2, (m_framebuffer.height()-Resource::Image::Raspberry_Logo.height())/2, Resource::Image::Raspberry_Logo);
-        m_display.update_blocking();
+        m_display.update_sync();
 
         m_framebuffer.clear();
         m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<Control*>(arg)->run(); }, "Display", TASK_STACK_SIZE, this, DISPLAY_TASK_PRIORITY, m_task_stack, &m_task_buf);
@@ -98,7 +98,7 @@ void Control::off()
         return;
 
     m_framebuffer.clear();
-    m_display.update_blocking();
+    m_display.update();
 }
 
 
@@ -119,7 +119,7 @@ void Control::update_battery()
         constexpr int BAR_HEIGHT { 30 };
 
         // Clear
-        m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, Resource::Image::Battery.width(),Resource::Image::Battery.height()+16, Framebuffer::DrawOp::SUBTRACT);
+        m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, Resource::Image::Battery.width(),Resource::Image::Battery.height()+16, framebuffer_type::DrawOp::SUBTRACT);
 
         if (critical) 
             m_battery_show = !m_battery_show;
@@ -153,7 +153,7 @@ void Control::update_battery()
         constexpr uint AREA_HEIGHT { 16*3 };
 
         // Clear
-        m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, OLED::Framebuffer::DrawOp::SUBTRACT);
+        m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, framebuffer_type::DrawOp::SUBTRACT);
         //m_framebuffer.draw_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT);
 
         char text[16];
@@ -192,7 +192,7 @@ void Control::update_radio()
     constexpr int AREA_HEIGHT { 16 };
     constexpr int ICON_LEFT  { AREA_LEFT+TEXT_WIDTH };
 
-    m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, OLED::Framebuffer::DrawOp::SUBTRACT);
+    m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, framebuffer_type::DrawOp::SUBTRACT);
 
     if (!sync) {
         // Not in sync with receiver module
@@ -238,7 +238,7 @@ void Control::update_armed(bool armed)
 
     xSemaphoreTake(m_sem, portMAX_DELAY);
 
-    m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, OLED::Framebuffer::DrawOp::SUBTRACT);
+    m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, framebuffer_type::DrawOp::SUBTRACT);
     if (armed) {
         m_framebuffer.draw_text(AREA_LEFT, AREA_TOP, "ARMED", font);
     }

@@ -9,8 +9,13 @@
 #pragma once
 
 #include <stdio.h>
+#include <pico/stdlib.h>
 #include <limits>
 #include <algorithm>
+#if PICO_NO_HARDWARE
+#include <iostream>
+#include <iomanip>
+#endif
 
 namespace LED::Color {
 
@@ -117,6 +122,17 @@ namespace LED::Color {
 
             operator raw_type() const { return rainbow(); }
 
+            #if PICO_NO_HARDWARE
+            friend std::ostream &operator<<(std::ostream &os, const HSV &self)
+            {
+                return os  << std::setfill('0') << std::setw(2) << std::hex
+                    << static_cast<uint>(self.m_hue)
+                    << static_cast<uint>(self.m_sat)
+                    << static_cast<uint>(self.m_val);
+
+            }
+            #endif
+
         private:
             channel_type m_hue;
             channel_type m_sat;
@@ -188,6 +204,16 @@ namespace LED::Color {
 
             constexpr void set(raw_type data) { m_data = data; }
 
+            #if PICO_NO_HARDWARE
+            friend std::ostream &operator<<(std::ostream &os, const RGB &self)
+            {
+                return os  << std::setfill('0') << std::hex
+                    << std::setw(2) << static_cast<uint>(self.red())
+                    << std::setw(2) << static_cast<uint>(self.green())
+                    << std::setw(2) << static_cast<uint>(self.blue());
+            }
+            #endif
+
         protected:
             raw_type m_data;
 
@@ -224,6 +250,10 @@ namespace LED::Color {
 
             static constexpr inline channel_type rawAlpha(raw_type c) { return (c >> ALPHA_SHIFT) & CHANNEL_MASK; }
 
+            bool operator==(const RGBA &other) const { return m_data == other.m_data; }
+
+            RGBA &operator=(const HSV &other) { m_data = other.rainbow() | (CHANNEL_MAX<<ALPHA_SHIFT); return *this; }
+            RGBA &operator=(const RGB &other) { m_data = other.rgb() | (CHANNEL_MAX<<ALPHA_SHIFT); return *this; }
             RGBA &operator=(const RGBA &other) { m_data = other.m_data; return *this; }
             RGBA &operator=(const raw_type other) { m_data = other; return *this; }
 
@@ -255,6 +285,16 @@ namespace LED::Color {
             RGBA &operator*=(const Correction correction) { *this = *this * correction; return *this; }
             RGBA &operator*=(const brightness_type brightness) { *this = *this * brightness; return *this; }
 
+            #if PICO_NO_HARDWARE
+            friend std::ostream &operator<<(std::ostream &os, const RGBA &self)
+            {
+                return os << std::hex << std::setfill('0')
+                    << std::setw(2) << static_cast<uint>(self.red())
+                    << std::setw(2) << static_cast<uint>(self.green())
+                    << std::setw(2) << static_cast<uint>(self.blue())
+                    << std::setw(2) << static_cast<uint>(self.alpha());
+            }
+            #endif
 
         protected:
 
@@ -284,6 +324,9 @@ namespace LED::Color {
 
             static constexpr inline channel_type rawWhite(raw_type c) { return (c >> WHITE_SHIFT) & CHANNEL_MASK; }
 
+            bool operator==(const RGBW &other) const { return m_data == other.m_data; }
+
+            RGBW &operator=(const HSV &other) { m_data = other.rainbow(); return *this; }
             RGBW &operator=(const RGB &other) { m_data = other.rgb(); return *this; }
             RGBW &operator=(const RGBA &other) { m_data = other.rgb(); return *this; }
             RGBW &operator=(const RGBW &other) { m_data = other.m_data; return *this; }
@@ -315,17 +358,14 @@ namespace LED::Color {
             RGBW &operator*=(const brightness_type brightness) { *this = *this * brightness; return *this; }
 
 
-            RGBW &operator<<(const HSV &src) {
+            void operator<<(const HSV &src) {
                 m_data = src.rainbow();
-                return *this;
             }
-            RGBW &operator<<(const RGB &src) {
+            void operator<<(const RGB &src) {
                 m_data = src.rgb();
-                return *this;
             }
-            RGBW &operator<<(const RGBW &src) {
+            void operator<<(const RGBW &src) {
                 m_data = src.m_data;
-                return *this;
             }
 
             /**
@@ -339,8 +379,18 @@ namespace LED::Color {
              * @param color The color to blend with
              * @return Color& this
              */
-            RGBW &operator<<(const RGBA &color);
+            void operator<<(const RGBA &color);
 
+            #if PICO_NO_HARDWARE
+            friend std::ostream &operator<<(std::ostream &os, const RGBW &self)
+            {
+                return os  << std::setfill('0') << std::hex
+                    << std::setw(2) << static_cast<uint>(self.red())
+                    << std::setw(2) << static_cast<uint>(self.green())
+                    << std::setw(2) << static_cast<uint>(self.blue())
+                    << std::setw(2) << static_cast<uint>(self.white());
+            }
+            #endif
 
         private: 
 

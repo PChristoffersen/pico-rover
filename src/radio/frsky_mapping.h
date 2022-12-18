@@ -15,14 +15,15 @@
 
 namespace Radio::FrSky {
 
+    enum class Toggle : uint {
+        P0 = 0,
+        P1 = 1,
+        P2 = 2,
+    };
+
+
     class TaranisX9DPlus {
         public:
-            enum class Toggle : uint {
-                P0 = 0,
-                P1 = 1,
-                P2 = 2,
-            };
-
             TaranisX9DPlus();
 
             // Axis

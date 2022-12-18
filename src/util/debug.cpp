@@ -5,6 +5,7 @@
 #include <pico/stdio.h>
 #include <pico/stdio/driver.h>
 #include <hardware/pio.h>
+#include <rtos.h>
 
 #include "../boardconfig.h"
 #include "uart_tx.pio.h"
@@ -46,6 +47,18 @@ void debug_init()
 
 
 #ifndef NDEBUG
+
+void debug_print_task_state()
+{
+    static char stat_buf[1024];
+    stat_buf[0] = '\0';
+    vTaskGetRunTimeStats(stat_buf);
+    //vTaskList(stat_buf);
+    printf("%s\n", stat_buf);
+}
+
+
+
 
 // I2C reserves some addresses for special purposes. We exclude these from the scan.
 // These are any addresses of the form 000 0xxx or 111 1xxx

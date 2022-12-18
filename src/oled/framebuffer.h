@@ -11,11 +11,9 @@
 #include <array>
 #include <algorithm>
 #include <stdio.h>
-#if 0
-#include <pico/stdlib.b>
-#else
-#include <stdint.h>
-#include <assert.h>
+#include <pico/stdlib.h>
+#if PICO_NO_HARDWARE
+#include <iostream>
 #endif
 
 #include "image.h"
@@ -24,12 +22,12 @@
 
 namespace OLED {
 
-    class Framebuffer {
+    class FramebufferBase {
         public:
             using column_type = uint8_t;
 
-            static constexpr uint COLUMNS { 128 };
-            static constexpr uint PAGES { 8 };
+            //static constexpr uint COLUMNS { 128 };
+            //static constexpr uint PAGES { 8 };
             static constexpr uint PAGE_BITS { 8 };
             static constexpr uint8_t PAGE_MASK { 0b111 };
 
@@ -38,6 +36,15 @@ namespace OLED {
                 SUBTRACT,
                 INVERT,
             };
+
+        protected:
+            static inline void _pixel_op(uint8_t &pix, uint8_t val, DrawOp op);
+    };
+
+    template<uint COLUMNS, uint PAGES>
+    class Framebuffer : public FramebufferBase {
+        public:
+            using self_type = Framebuffer<COLUMNS, PAGES>;
 
             struct Region {
                 uint8_t c1;
@@ -57,7 +64,12 @@ namespace OLED {
                 }
             };
 
-            Framebuffer();
+            Framebuffer() :     
+                m_dirty { false }
+            {
+                m_buffer.fill(0x00);
+            }
+
 
             void clear();
 
@@ -71,8 +83,6 @@ namespace OLED {
             }
             void draw_text(int x, int y, const char *text, const Font &font, DrawOp op = DrawOp::ADD);
 
-
-
             constexpr uint width() const { return COLUMNS; }
             constexpr uint height() const { return PAGES*8; }
 
@@ -82,14 +92,16 @@ namespace OLED {
 
             const column_type *data() const { return m_buffer.data(); }
             column_type *page(uint page) { assert(page<PAGES); return m_buffer.data()+COLUMNS*page; }
+            const column_type *page(uint page) const { assert(page<PAGES); return m_buffer.data()+COLUMNS*page; }
 
             const Region &dirty_region() const { return m_dirty_region; }
             bool is_dirty() const { return m_dirty; }
             void clear_dirty() { m_dirty = false; m_dirty_region.reset(); }
 
 
-            #ifndef NDEBUG
-            void print(uint n_pgs = PAGES);
+            #if PICO_NO_HARDWARE
+            template<uint COLUMNS_, uint PAGES_>
+            friend std::ostream &operator<<(std::ostream &os, const Framebuffer<COLUMNS_, PAGES_> &self);
             #endif
         private:
             using buffer_type = std::array<column_type, COLUMNS*PAGES>;
@@ -102,4 +114,11 @@ namespace OLED {
             void draw_bitmap(int x, int y, const uint8_t *bitmap, uint w, uint h, DrawOp op);
     };
 
+
+    using Framebuffer128x64 = Framebuffer<128u,8u>;
+    using Framebuffer128x32 = Framebuffer<128u,4u>;
+
 }
+
+#include "framebuffer.impl.h"
+

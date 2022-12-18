@@ -1,35 +1,26 @@
-#include "framebuffer.h"
-
 #include <algorithm>
-
 
 namespace OLED {
 
-static inline void _pixel_op(uint8_t &pix, uint8_t val, Framebuffer::DrawOp op)
+inline void FramebufferBase::_pixel_op(uint8_t &pix, uint8_t val, FramebufferBase::DrawOp op)
 {
     switch (op) {
-    case Framebuffer::DrawOp::ADD:
+    case FramebufferBase::DrawOp::ADD:
         pix |= val;
         break;
-    case Framebuffer::DrawOp::SUBTRACT:
+    case FramebufferBase::DrawOp::SUBTRACT:
         pix &= ~val;
         break;
-    case Framebuffer::DrawOp::INVERT:
+    case FramebufferBase::DrawOp::INVERT:
         pix ^= val;
         break;
     }
 }
 
 
-Framebuffer::Framebuffer() :
-    m_dirty { false }
-{
-    m_buffer.fill(0x00);
-}
 
-
-
-void Framebuffer::clear() 
+template<uint COLUMNS, uint PAGES>
+void Framebuffer<COLUMNS, PAGES>::clear() 
 {
     m_buffer.fill(0x00);
     m_dirty = true;
@@ -39,7 +30,8 @@ void Framebuffer::clear()
 
 
 
-void Framebuffer::draw_hline(int x, int y, uint w, DrawOp op)
+template<uint COLUMNS, uint PAGES>
+void Framebuffer<COLUMNS, PAGES>::draw_hline(int x, int y, uint w, DrawOp op)
 {
     if (x>=(int)width() || y>=(int)height() || y<0 || w==0 || (x+(int)w)<0)
         return;
@@ -58,7 +50,8 @@ void Framebuffer::draw_hline(int x, int y, uint w, DrawOp op)
 }
 
 
-void Framebuffer::draw_vline(int x, int y, uint h, DrawOp op)
+template<uint COLUMNS, uint PAGES>
+void Framebuffer<COLUMNS,PAGES>::draw_vline(int x, int y, uint h, DrawOp op)
 {
     if (x>=(int)width() || y>=(int)height() || x<0 || h==0 || (y+(int)h)<0)
         return;
@@ -82,7 +75,8 @@ void Framebuffer::draw_vline(int x, int y, uint h, DrawOp op)
 
 
 
-void Framebuffer::draw_rect(int x, int y, uint w, uint h, DrawOp op)
+template<uint COLUMNS, uint PAGES>
+void Framebuffer<COLUMNS,PAGES>::draw_rect(int x, int y, uint w, uint h, DrawOp op)
 {
     draw_hline(x,     y,      w,   op);
     draw_hline(x,     y+h-1,  w,   op);
@@ -91,7 +85,8 @@ void Framebuffer::draw_rect(int x, int y, uint w, uint h, DrawOp op)
 }
 
 
-void Framebuffer::fill_rect(int x, int y, uint w, uint h, DrawOp op)
+template<uint COLUMNS, uint PAGES>
+void Framebuffer<COLUMNS,PAGES>::fill_rect(int x, int y, uint w, uint h, DrawOp op)
 {
     if (w==0 || h==0 || x>=(int)width() || y>=(int)height() || (x+(int)w)<0 || (y+(int)h)<0)
         return;
@@ -162,7 +157,8 @@ void Framebuffer::fill_rect(int x, int y, uint w, uint h, DrawOp op)
 
 
 
-void Framebuffer::draw_bitmap(int x, int y, const uint8_t *bitmap, uint w, uint h, DrawOp op)
+template<uint COLUMNS, uint PAGES>
+void Framebuffer<COLUMNS,PAGES>::draw_bitmap(int x, int y, const uint8_t *bitmap, uint w, uint h, DrawOp op)
 {
     if (w==0 || h==0 || x>=(int)width() || y>=(int)height() || (x+(int)w)<0 || (y+(int)h)<0)
         return;
@@ -224,7 +220,8 @@ void Framebuffer::draw_bitmap(int x, int y, const uint8_t *bitmap, uint w, uint 
 
 
 
-void Framebuffer::draw_text(int x, int y, const char *text, const Font &font, DrawOp op)
+template<uint COLUMNS, uint PAGES>
+void Framebuffer<COLUMNS,PAGES>::draw_text(int x, int y, const char *text, const Font &font, DrawOp op)
 {
     int pos = x;
     while (*text) {
@@ -248,33 +245,44 @@ void Framebuffer::draw_text(int x, int y, const char *text, const Font &font, Dr
 }
 
 
-
-#ifndef NDEBUG
-void Framebuffer::print(uint n_pgs) 
+#if PICO_NO_HARDWARE
+template<uint COLUMNS_, uint PAGES_>
+std::ostream &operator<<(std::ostream &os, const Framebuffer<COLUMNS_, PAGES_> &self)
 {
-    printf("     ");
-    for (uint c=0; c<columns(); ++c) {
-        printf("%d", c%10);
+    os << "     ";
+    for (uint c=0; c<self.columns(); ++c) {
+        os << (c%10);
     }
-    printf("\n");
-    for (uint pg=0; pg<n_pgs; ++pg) {
-        auto buf = page(pg);
-        for (uint bit=0; bit<PAGE_BITS; ++bit) {
-            printf("%2u: |", pg*PAGE_BITS+bit);
-            for (uint c=0; c<columns(); ++c) {
-                bool dirty = m_dirty 
-                    && (pg>=m_dirty_region.p1 && pg<=m_dirty_region.p2)
-                    && (c>=m_dirty_region.c1 && c<=m_dirty_region.c2);
+    os << std::endl;
+
+    for (uint pg=0; pg<PAGES_; ++pg) {
+        auto buf = self.page(pg);
+        for (uint bit=0; bit<self.PAGE_BITS; ++bit) {
+            os << std::setw(2) 
+                << static_cast<uint>(pg*self.PAGE_BITS+bit)
+                << ": |";
+            for (uint c=0; c<self.columns(); ++c) {
+                bool dirty = self.m_dirty 
+                    && (pg>=self.m_dirty_region.p1 && pg<=self.m_dirty_region.p2)
+                    && (c>=self.m_dirty_region.c1 && c<=self.m_dirty_region.c2);
                 if (buf[c]&(1<<bit)) 
-                    printf(dirty?"@":"*");
+                    os << (dirty?"@":"*");
                 else
-                    printf(dirty?".":" ");
+                    os << (dirty?".":" ");
             }
-            printf("|\n");
+            os << "|" << std::endl;
         }
     }
-    printf("Dirty: %d %d %d %d\n", m_dirty_region.c1, m_dirty_region.c2, m_dirty_region.p1, m_dirty_region.p2);
+    os << "Dirty: " 
+        << static_cast<uint>(self.m_dirty_region.c1) << " "
+        << static_cast<uint>(self.m_dirty_region.c2) << " "
+        << static_cast<uint>(self.m_dirty_region.p1) << " "
+        << static_cast<uint>(self.m_dirty_region.p2) << std::endl;
+
+    return os;
 }
+
+
 #endif
 
 }

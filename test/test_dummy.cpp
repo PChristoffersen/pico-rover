@@ -2,21 +2,13 @@
 
 #include <stdio.h>
 #include <pico/stdlib.h>
-#include <pico/test.h>
 #include <FreeRTOS.h>
+#include <gtest/gtest.h>
 
-PICOTEST_MODULE_NAME("dummy_test", "Dummy test harness");
-
-
-int main()
-{
-    PICOTEST_START();
-
-    PICOTEST_START_SECTION("Dummy");
-
-    PICOTEST_END_SECTION()
-
-    PICOTEST_END_TEST()
-
-    return 0;
+// Demonstrate some basic assertions.
+TEST(Dummy, Simple) {
+  // Expect two strings not to be equal.
+  EXPECT_STRNE("hello", "world");
+  // Expect equality.
+  EXPECT_EQ(7 * 6, 42);
 }

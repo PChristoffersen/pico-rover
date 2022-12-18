@@ -9,7 +9,7 @@
 #include <semphr.h>
 
 #include "boardconfig.h"
-
+#include <util/debug.h>
 
 static constexpr size_t DMA_BUFFER_SIZE = 1024+16;
 
@@ -100,14 +100,12 @@ void i2c_bus_init()
     irq_set_enabled(I2C_DMA_IRQ, true);
 
     irq_set_exclusive_handler(I2C0_IRQ, _i2c_handler);
-
-
 }
 
 
 void i2c_bus_acquire_blocking()
 {
-    auto res = xSemaphoreTake(g_bus_sem, portMAX_DELAY);
+    auto res __attribute__((unused)) = xSemaphoreTake(g_bus_sem, portMAX_DELAY);
     configASSERT(res==pdTRUE);
 }
 

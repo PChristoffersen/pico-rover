@@ -35,17 +35,18 @@ namespace OLED {
             void init();
             bool present() { return m_present; }
 
-            void update_blocking();
+            void update();
+            void update_sync();
 
             bool update_needed() const { return m_present && m_framebuffer.is_dirty(); }
 
-            Framebuffer &framebuffer() { return m_framebuffer; }
+            Framebuffer128x64 &framebuffer() { return m_framebuffer; }
 
         private:
             const addr_type m_address;
             bool m_present;
 
-            Framebuffer m_framebuffer;
+            Framebuffer128x64 m_framebuffer;
 
             void send_cmds(const uint8_t *cmds, uint len);
             void send_data_sync();

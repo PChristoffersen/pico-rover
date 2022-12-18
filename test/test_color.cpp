@@ -1,147 +1,196 @@
 
-#include <pico/test.h>
+#include <gtest/gtest.h>
 #include <led/color.h>
 
-PICOTEST_MODULE_NAME("color_test", "Color test harness");
 
-
-int test_rgb() 
-{
+TEST(Color, RGB) {
     LED::Color::RGB c;
 
     c = LED::Color::RGB::BLACK;
-    PICOTEST_CHECK(c.red()==0x00,   "Black(red)");
-    PICOTEST_CHECK(c.green()==0x00, "Black(green)");
-    PICOTEST_CHECK(c.blue()==0x00,  "Black(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Black(alpha)");
+    EXPECT_EQ(c.red(),   0x00) << "Black(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Black(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Black(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Black(alpha) " << c;
 
     c = LED::Color::RGB::RED;
-    PICOTEST_CHECK(c.red()==0xFF,   "Red(red)");
-    PICOTEST_CHECK(c.green()==0x00, "Red(green)");
-    PICOTEST_CHECK(c.blue()==0x00,  "Red(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Red(alpha)");
+    EXPECT_EQ(c.red(),   0xFF) << "Red(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Red(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Red(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Red(alpha) " << c;
 
     c = LED::Color::RGB::GREEN;
-    PICOTEST_CHECK(c.red()==0x00,   "Green(red)");
-    PICOTEST_CHECK(c.green()==0xFF, "Green(green)");
-    PICOTEST_CHECK(c.blue()==0x00,  "Green(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Green(alpha)");
+    EXPECT_EQ(c.red(),   0x00) << "Green(red) " << c;
+    EXPECT_EQ(c.green(), 0xFF) << "Green(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Green(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Green(alpha) " << c;
 
     c = LED::Color::RGB::BLUE;
-    PICOTEST_CHECK(c.red()==0x00,   "Blue(red)");
-    PICOTEST_CHECK(c.green()==0x00, "Blue(green)");
-    PICOTEST_CHECK(c.blue()==0xFF,  "Blue(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Blue(alpha)");
-
-    return 0;
+    EXPECT_EQ(c.red(),   0x00) << "Blue(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Blue(green) " << c;
+    EXPECT_EQ(c.blue(),  0xFF) << "Blue(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Blue(alpha) " << c;
 }
 
 
-int test_rgba() 
-{
+TEST(Color, RGBA) {
     LED::Color::RGBA c;
 
     c = LED::Color::RGBA::TRANSPARENT;
-    PICOTEST_CHECK(c.red()==0x00,   "Transparent(red)");
-    PICOTEST_CHECK(c.green()==0x00, "Transparent(green)");
-    PICOTEST_CHECK(c.blue()==0x00,  "Transparent(blue)");
-    PICOTEST_CHECK(c.alpha()==0x00, "Transparent(alpha)");
+    EXPECT_EQ(c.red(),   0x00) << "Transparent(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Transparent(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Transparent(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0x00) << "Transparent(alpha) " << c;
 
     c = LED::Color::RGB::BLACK;
-    PICOTEST_CHECK(c.red()==0x00,   "Black(red)");
-    PICOTEST_CHECK(c.green()==0x00, "Black(green)");
-    PICOTEST_CHECK(c.blue()==0x00,  "Black(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Black(alpha)");
+    EXPECT_EQ(c.red(),   0x00) << "Black(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Black(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Black(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Black(alpha) " << c;
 
     c = LED::Color::RGB::RED;
-    PICOTEST_CHECK(c.red()==0xFF,   "Red(red)");
-    PICOTEST_CHECK(c.green()==0x00, "Red(green)");
-    PICOTEST_CHECK(c.blue()==0x00,  "Red(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Red(alpha)");
+    EXPECT_EQ(c.red(),   0xFF) << "Red(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Red(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Red(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Red(alpha) " << c;
 
     c = LED::Color::RGB::GREEN;
-    PICOTEST_CHECK(c.red()==0x00,   "Green(red)");
-    PICOTEST_CHECK(c.green()==0xFF, "Green(green)");
-    PICOTEST_CHECK(c.blue()==0x00,  "Green(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Green(alpha)");
+    EXPECT_EQ(c.red(),   0x00) << "Green(red) " << c;
+    EXPECT_EQ(c.green(), 0xFF) << "Green(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Green(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Green(alpha) " << c;
 
     c = LED::Color::RGB::BLUE;
-    PICOTEST_CHECK(c.red()==0x00,   "Blue(red)");
-    PICOTEST_CHECK(c.green()==0x00, "Blue(green)");
-    PICOTEST_CHECK(c.blue()==0xFF,  "Blue(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Blue(alpha)");
+    EXPECT_EQ(c.red(),   0x00) << "Blue(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Blue(green) " << c;
+    EXPECT_EQ(c.blue(),  0xFF) << "Blue(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Blue(alpha) " << c;
 
-    return 0;
 }
 
 
-int test_rgbw() 
-{
+TEST(Color, RGBW) {
     LED::Color::RGBW c;
 
     c = LED::Color::RGBA::TRANSPARENT;
-    PICOTEST_CHECK(c.red()==0x00,   "Transparent(red)");
-    PICOTEST_CHECK(c.green()==0x00, "Transparent(green)");
-    PICOTEST_CHECK(c.blue()==0x00,  "Transparent(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Transparent(alpha)");
-    PICOTEST_CHECK(c.white()==0x00, "Transparent(white)");
+    EXPECT_EQ(c.red(),   0x00) << "Transparent(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Transparent(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Transparent(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Transparent(alpha) " << c;
+    EXPECT_EQ(c.white(), 0x00) << "Transparent(white) " << c;
 
     c = LED::Color::RGB::BLACK;
-    PICOTEST_CHECK(c.red()==0x00,   "Black(red)");
-    PICOTEST_CHECK(c.green()==0x00, "Black(green)");
-    PICOTEST_CHECK(c.blue()==0x00,  "Black(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Black(alpha)");
-    PICOTEST_CHECK(c.white()==0x00, "Black(white)");
+    EXPECT_EQ(c.red(),   0x00) << "Black(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Black(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Black(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Black(alpha) " << c;
+    EXPECT_EQ(c.white(), 0x00) << "Black(white) " << c;
 
     c = LED::Color::RGB::RED;
-    PICOTEST_CHECK(c.red()==0xFF,   "Red(red)");
-    PICOTEST_CHECK(c.green()==0x00, "Red(green)");
-    PICOTEST_CHECK(c.blue()==0x00,  "Red(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Red(alpha)");
-    PICOTEST_CHECK(c.white()==0x00, "Red(white)");
+    EXPECT_EQ(c.red(),   0xFF) << "Red(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Red(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Red(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Red(alpha) " << c;
+    EXPECT_EQ(c.white(), 0x00) << "Red(white) " << c;
 
     c = LED::Color::RGB::GREEN;
-    PICOTEST_CHECK(c.red()==0x00,   "Green(red)");
-    PICOTEST_CHECK(c.green()==0xFF, "Green(green)");
-    PICOTEST_CHECK(c.blue()==0x00,  "Green(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Green(alpha)");
-    PICOTEST_CHECK(c.white()==0x00, "Green(white)");
+    EXPECT_EQ(c.red(),   0x00) << "Green(red) " << c;
+    EXPECT_EQ(c.green(), 0xFF) << "Green(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Green(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Green(alpha) " << c;
+    EXPECT_EQ(c.white(), 0x00) << "Green(white) " << c;
 
     c = LED::Color::RGB::BLUE;
-    PICOTEST_CHECK(c.red()==0x00,   "Blue(red)");
-    PICOTEST_CHECK(c.green()==0x00, "Blue(green)");
-    PICOTEST_CHECK(c.blue()==0xFF,  "Blue(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Blue(alpha)");
-    PICOTEST_CHECK(c.white()==0x00, "Blue(white)");
+    EXPECT_EQ(c.red(),   0x00) << "Blue(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Blue(green) " << c;
+    EXPECT_EQ(c.blue(),  0xFF) << "Blue(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Blue(alpha) " << c;
+    EXPECT_EQ(c.white(), 0x00) << "Blue(white) " << c;
 
     c = LED::Color::RGBW::WHITE;
-    PICOTEST_CHECK(c.red()==0xFF,   "Blue(red)");
-    PICOTEST_CHECK(c.green()==0xFF, "Blue(green)");
-    PICOTEST_CHECK(c.blue()==0xFF,  "Blue(blue)");
-    PICOTEST_CHECK(c.alpha()==0xFF, "Blue(alpha)");
-    PICOTEST_CHECK(c.white()==0xFF, "Blue(white)");
+    EXPECT_EQ(c.red(),   0xFF) << "Blue(red) " << c;
+    EXPECT_EQ(c.green(), 0xFF) << "Blue(green) " << c;
+    EXPECT_EQ(c.blue(),  0xFF) << "Blue(blue) " << c;
+    EXPECT_EQ(c.alpha(), 0xFF) << "Blue(alpha) " << c;
+    EXPECT_EQ(c.white(), 0xFF) << "Blue(white) " << c;
 
-    return 0;
 }
 
 
-int main()
-{
-    PICOTEST_START();
+TEST(Color, HSV) {
+    LED::Color::RGB c;
 
-    PICOTEST_START_SECTION("RGB");
-    test_rgb();
-    PICOTEST_END_SECTION()
+    c = LED::Color::HSV(0x00, 0x00, 0xFF);
+    EXPECT_EQ(c.red(),   0xFF) << "White(red) " << c;
+    EXPECT_EQ(c.green(), 0xFF) << "White(green) " << c;
+    EXPECT_EQ(c.blue(),  0xFF) << "White(blue) " << c;
 
-    PICOTEST_START_SECTION("RGBA");
-    test_rgba();
-    PICOTEST_END_SECTION()
+    c = LED::Color::HSV(0x00, 0x00, 0x00);
+    EXPECT_EQ(c.red(),   0x00) << "Black(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Black(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Black(blue) " << c;
 
-    PICOTEST_START_SECTION("RGBW");
-    test_rgbw();
-    PICOTEST_END_SECTION()
+    c = LED::Color::HSV(0x00, 0xFF, 0xFF);
+    EXPECT_EQ(c.red(),   0xFF) << "Red(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Red(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Red(blue) " << c;
 
-    PICOTEST_END_TEST()
+    c = LED::Color::HSV(0x60, 0xFF, 0xFF);
+    EXPECT_EQ(c.red(),   0x00) << "Green(red) " << c;
+    EXPECT_EQ(c.green(), 0xFF) << "Green(green) " << c;
+    EXPECT_EQ(c.blue(),  0x00) << "Green(blue) " << c;
 
-    return 0;
+    c = LED::Color::HSV(0xA0, 0xFF, 0xFF);
+    EXPECT_EQ(c.red(),   0x00) << "Blue(red) " << c;
+    EXPECT_EQ(c.green(), 0x00) << "Blue(green) " << c;
+    EXPECT_EQ(c.blue(),  0xFF) << "Blue(blue) " << c;
 }
+
+TEST(Color, Blend) {
+    using namespace LED::Color;
+
+    RGBW dst;
+
+    dst = RGB::GREEN;
+    dst << RGBA::TRANSPARENT;
+    EXPECT_EQ(dst.red(),   0x00) << "Transparent(red) " << dst;
+    EXPECT_EQ(dst.green(), 0xFF) << "Transparent(green) " << dst;
+    EXPECT_EQ(dst.blue(),  0x00) << "Transparent(blue) " << dst;
+    EXPECT_EQ(dst.white(), 0x00) << "Transparent(white) " << dst;
+
+    dst = RGB::GREEN;
+    dst << RGBA(0xFF, 0x00, 0x00, 0x80);
+    EXPECT_EQ(dst.red(),   0x80) << "Red(red) " << dst;
+    EXPECT_EQ(dst.green(), 0x80) << "Red(green) " << dst;
+    EXPECT_EQ(dst.blue(),  0x00) << "Red(blue) " << dst;
+    EXPECT_EQ(dst.white(), 0x00) << "Red(white) " << dst;
+
+    dst = RGB::GREEN;
+    dst << RGBA(0x00, 0xFF, 0x00, 0x80);
+    EXPECT_EQ(dst.red(),   0x00) << "Green(red) " << dst;
+    EXPECT_EQ(dst.green(), 0xFF) << "Green(green) " << dst;
+    EXPECT_EQ(dst.blue(),  0x00) << "Green(blue) " << dst;
+    EXPECT_EQ(dst.white(), 0x00) << "Green(white) " << dst;
+
+    dst = RGB::GREEN;
+    dst << RGBA(0x00, 0x00, 0xFF, 0x80);
+    EXPECT_EQ(dst.red(),   0x00) << "Blue(red) " << dst;
+    EXPECT_EQ(dst.green(), 0x80) << "Blue(green) " << dst;
+    EXPECT_EQ(dst.blue(),  0x80) << "Blue(blue) " << dst;
+    EXPECT_EQ(dst.white(), 0x00) << "Blue(white) " << dst;
+
+    dst = RGB::GREEN;
+    dst << RGBA(0xFF, 0xFF, 0xFF, 0x80);
+    EXPECT_EQ(dst.red(),   0x80) << "White(red) " << dst;
+    EXPECT_EQ(dst.green(), 0xFF) << "White(green) " << dst;
+    EXPECT_EQ(dst.blue(),  0x80) << "White(blue) " << dst;
+    EXPECT_EQ(dst.white(), 0x00) << "White(white) " << dst;
+
+
+    dst = RGB::WHITE;
+    dst << RGBA(0xFF, 0x00, 0x00, 0x80);
+    EXPECT_EQ(dst.red(),   0xFF) << "White2(red) " << dst;
+    EXPECT_EQ(dst.green(), 0xFF) << "White2(green) " << dst;
+    EXPECT_EQ(dst.blue(),  0xFF) << "White2(blue) " << dst;
+    EXPECT_EQ(dst.white(), 0x00) << "White2(white) " << dst;
+}
+

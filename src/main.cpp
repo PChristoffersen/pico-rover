@@ -90,11 +90,9 @@ static void main_task(__unused void *params)
         switch (state) {
             case 0: 
                 {
-                    static char stat_buf[1024];
-                    stat_buf[0] = '\0';
-                    vTaskGetRunTimeStats(stat_buf);
-                    //vTaskList(stat_buf);
-                    printf("%s\n", stat_buf);
+                    #ifndef NDEBUG
+                    debug_print_task_state();
+                    #endif
                 }
                 break;
             case 1: 
@@ -208,7 +206,18 @@ static void init()
             servos[1].put((-mapping.s2()).asServoPulse());
             drive_wheels(mapping.right_x().asFloat(), mapping.right_y().asFloat(), mapping.left_x().asFloat());
         }
-        //robot.led_render().set_mode(static_cast<uint>(mapping.sc()));
+
+        switch (mapping.sc()) {
+            case Radio::FrSky::Toggle::P0:
+                robot.leds().set_mode(LED::Control::Mode::BLACK);
+                break;
+            case Radio::FrSky::Toggle::P1:
+                robot.leds().set_mode(LED::Control::Mode::KNIGHT_RIDER);
+                break;
+            case Radio::FrSky::Toggle::P2:
+                robot.leds().set_mode(LED::Control::Mode::COLOR_CYCLE);
+                break;
+        }
     });
     #endif
 
@@ -261,7 +270,7 @@ int main()
     stdio_init_all();
     debug_init();
     i2c_bus_init();
-    usb_device_init();
+    //usb_device_init();
 
     // Init basic systems
     //watchdog.init();
