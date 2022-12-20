@@ -6,7 +6,7 @@
 #include <iomanip>
 #endif
 
-#include "color.h"
+#include <led/color.h>
 
 namespace LED::Color {
 

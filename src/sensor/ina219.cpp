@@ -4,7 +4,7 @@
 #include <pico/stdlib.h>
 #include <hardware/i2c.h>
 
-#include <util/i2c_bus.h>
+#include <i2c_bus.h>
 
 namespace Sensor {
 

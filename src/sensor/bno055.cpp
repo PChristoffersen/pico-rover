@@ -5,8 +5,8 @@
 #include <pico/stdlib.h>
 #include <hardware/i2c.h>
 
+#include <i2c_bus.h>
 #include <boardconfig.h>
-#include <util/i2c_bus.h>
 #include "bno055_regs.h"
 
 

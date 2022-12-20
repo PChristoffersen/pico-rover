@@ -5,12 +5,13 @@
 #include <pico/stdlib.h>
 #include <rtos.h>
 
+#include <led/strip.h>
+#include <led/colorbuffer.h>
+#include <led/colorlayer.h>
+
 #include <boardconfig.h>
-#include "strip.h"
 #include "gpio_led.h"
 #include "cyw43_led.h"
-#include "colorbuffer.h"
-#include "colorlayer.h"
 #include "animation.h"
 #include "animation/indicators.h"
 

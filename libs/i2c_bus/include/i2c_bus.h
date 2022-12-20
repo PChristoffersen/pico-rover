@@ -10,7 +10,7 @@
 
 #include <pico/stdlib.h>
 
-void i2c_bus_init();
+void i2c_bus_init(uint bus_speed);
 
 void i2c_bus_acquire_blocking();
 bool i2c_bus_acquire_timeout_ms(uint32_t timeout_ms);

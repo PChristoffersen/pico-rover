@@ -4,8 +4,8 @@
 #include <rtos.h>
 #include <string_view>
 
+#include <led/colorlayer.h>
 #include <boardconfig.h>
-#include "colorlayer.h"
 
 namespace LED::Animation {
 

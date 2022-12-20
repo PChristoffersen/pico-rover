@@ -5,7 +5,7 @@
 #include <string.h>
 #include <pico/stdlib.h>
 
-#include <util/i2c_bus.h>
+#include <i2c_bus.h>
 #include "ssd1306_regs.h"
 
 

@@ -8,15 +8,15 @@
 #include <tusb.h>
 #include <rtos.h>
 
+#include <i2c_bus.h>
+
 #include "boardconfig.h"
 #include "usb_device.h"
 #include "wifi.h"
 #include "robot.h"
 #include "watchdog/watchdog.h"
-#include "util/time.h"
 #include "util/debug.h"
 #include "util/battery.h"
-#include "util/i2c_bus.h"
 
 #include "ros/client.h"
 
@@ -280,7 +280,7 @@ int main()
 {
     stdio_init_all();
     debug_init();
-    i2c_bus_init();
+    i2c_bus_init(BOARD_I2C_SPEED);
     //usb_device_init();
 
     // Init basic systems

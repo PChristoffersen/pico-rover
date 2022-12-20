@@ -27,9 +27,9 @@
  * 
  */
 
-#include "color.h"
+#include <led/color.h>
 
-namespace LED {
+namespace LED::Color {
 
 /**
  * @brief 
@@ -52,7 +52,7 @@ static constexpr inline uint8_t scale8_video(uint8_t i, uint8_t scale)
 }
 
 
-Color::HSV::raw_type Color::HSV::rainbow() const
+HSV::raw_type HSV::rainbow() const
 {
     constexpr auto K255 { 255 };
     constexpr auto K171 { 171 };
@@ -232,7 +232,7 @@ Color::HSV::raw_type Color::HSV::rainbow() const
 }
 
 
-Color::HSV::raw_type Color::HSV::spectrum() const
+HSV::raw_type HSV::spectrum() const
 {
     HSV hsv { scale8(m_hue, 191), m_sat, m_val };
     return hsv.raw();
@@ -241,7 +241,7 @@ Color::HSV::raw_type Color::HSV::spectrum() const
 
 #define APPLY_DIMMING(X) (X)
 
-Color::HSV::raw_type Color::HSV::raw() const 
+HSV::raw_type HSV::raw() const 
 {
     //constexpr auto HSV_SECTION_6 { 0x20 };
     constexpr auto HSV_SECTION_3 { 0x40 };

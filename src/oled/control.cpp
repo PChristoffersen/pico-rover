@@ -3,7 +3,6 @@
 #include <algorithm>
 
 #include <util/battery.h>
-#include <util/time.h>
 #include <robot.h>
 
 #include <resources/raspberry_logo.image.h>

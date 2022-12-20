@@ -1,4 +1,4 @@
-#include "i2c_bus.h"
+#include <i2c_bus.h>
 
 #include <stdio.h>
 #include <pico/stdlib.h>
@@ -7,9 +7,6 @@
 
 #include <FreeRTOS.h>
 #include <semphr.h>
-
-#include "boardconfig.h"
-#include <util/debug.h>
 
 static constexpr size_t DMA_BUFFER_SIZE = 1024+16;
 
@@ -55,7 +52,7 @@ static void __isr _i2c_handler()
 }
 
 
-void i2c_bus_init()
+void i2c_bus_init(uint bus_speed)
 {
     g_bus_sem = xSemaphoreCreateBinaryStatic(&g_bus_sem_buf);
     configASSERT(g_bus_sem);
@@ -63,7 +60,7 @@ void i2c_bus_init()
 
     gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
-    i2c_init(i2c_default, BOARD_I2C_SPEED);
+    i2c_init(i2c_default, bus_speed);
 
     g_bus_dma = dma_claim_unused_channel(true);
 

@@ -1,4 +1,4 @@
-#include "strip.h"
+#include <led/strip.h>
 
 #include <stdio.h>
 #include <string.h>

@@ -2,7 +2,7 @@
 
 #include <limits>
 
-#include "colorlayer.h"
+#include <led/colorlayer.h>
 #include "animation/knightrider.h"
 #include "animation/colorcycle.h"
 #include "animation/blink.h"

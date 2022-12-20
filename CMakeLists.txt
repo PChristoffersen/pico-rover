@@ -32,6 +32,9 @@ pico_sdk_init()
 
 if(NOT PICO_PLATFORM STREQUAL "host")
 
+add_subdirectory(libs)
+
+
 add_executable(${PROJECT_NAME} 
     src/main.cpp
     src/boardconfig.cpp
@@ -40,12 +43,9 @@ add_executable(${PROJECT_NAME}
     src/usb_descriptors.c
     src/usb_device.c
     src/wifi.c
-    src/led/color.cpp
-    src/led/color_hsv.cpp
     src/led/control.cpp
     src/led/cyw43_led.cpp
     src/led/gpio_led.cpp
-    src/led/strip.cpp
     src/motor/dcmotor.cpp
     src/motor/encoder.cpp
     src/motor/servo.cpp
@@ -57,7 +57,6 @@ add_executable(${PROJECT_NAME}
     src/sensor/ina219.cpp
     src/telemetry/provider.cpp
     src/util/debug.cpp
-    src/util/i2c_bus.cpp
     src/watchdog/watchdog.cpp
     src/ros/client.cpp
     src/ros/hal.c
@@ -111,7 +110,6 @@ set_source_files_properties(
                 COMPILE_FLAGS "-Wno-type-limits")
 
 # Add PIO programs
-pico_generate_pio_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/led/ws2812.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
 pico_generate_pio_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/motor/quadrature_encoder.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
 pico_generate_pio_header(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/src/util/uart_tx.pio OUTPUT_DIR ${PROJECT_BINARY_DIR}/generated)
 
@@ -147,7 +145,6 @@ target_link_libraries(${PROJECT_NAME}
     pico_multicore
     tinyusb_device 
     tinyusb_board
-    fbus2
 )
  
 # Add any user requested libraries
@@ -158,6 +155,12 @@ target_link_libraries(${PROJECT_NAME}
     hardware_pio 
     hardware_dma 
     hardware_adc
+)
+
+target_link_libraries(${PROJECT_NAME}
+    i2c_bus
+    led_strip
+    fbus2
 )
 
 
@@ -176,7 +179,6 @@ target_link_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/libs/micro
 target_link_libraries(${PROJECT_NAME} microros)
 
 
-add_subdirectory(libs)
 
 
 

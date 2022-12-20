@@ -14,10 +14,11 @@
 #include <pico/sem.h>
 #include <hardware/pio.h>
 #include <hardware/dma.h>
-#include <rtos.h>
+#include <FreeRTOS.h>
+#include <semphr.h>
 
-#include "color.h"
-#include "colorbuffer.h"
+#include <led/color.h>
+#include <led/colorbuffer.h>
 
 namespace LED {
 
