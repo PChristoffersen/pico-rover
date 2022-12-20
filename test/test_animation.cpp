@@ -9,16 +9,17 @@
 using namespace LED;
 
 using layer_type = Color::Layer<Color::RGBA, LED_STRIP_PIXEL_COUNT>;
+using indicator_type = Animation::Indicators<LED_STRIP_PIXEL_COUNT>;
 
-static void expect_indicator_leds(const char *name, TickType_t time, const Animation::Indicators &anim, layer_type &layer, uint lid)
+static void expect_indicator_leds(const char *name, TickType_t time, const indicator_type &anim, layer_type &layer, uint lid)
 {
-    auto off_count = Animation::Indicators::LED_COUNT-lid;
-    for (uint i=0; i<Animation::Indicators::LED_COUNT; i++) {
+    auto off_count = indicator_type::LED_COUNT-lid;
+    for (uint i=0; i<indicator_type::LED_COUNT; i++) {
         if (i<off_count) {
             EXPECT_EQ(layer[i], Color::RGBA::TRANSPARENT) << name << " state=" << anim.get_state() << " time=" << time << " " << " led=" << i << std::endl << layer;
         }
         else {
-            EXPECT_EQ(layer[i], Animation::Indicators::COLOR) << name << " state=" << anim.get_state() << " time=" << time << " " << " led=" << i << std::endl << layer;
+            EXPECT_EQ(layer[i], indicator_type::COLOR) << name << " state=" << anim.get_state() << " time=" << time << " " << " led=" << i << std::endl << layer;
         }
     }
 }
@@ -26,13 +27,13 @@ static void expect_indicator_leds(const char *name, TickType_t time, const Anima
 TEST(LEDAnimation, indicators) 
 {
     layer_type layer;
-    Animation::Indicators anim { layer };
+    indicator_type anim { layer };
     TickType_t time = 0;
 
     EXPECT_FALSE(layer.is_dirty()) << "Initial dirty";
     EXPECT_FALSE(layer.is_visible()) << "Initial visibility";
 
-    anim.set_mode(Animation::Indicators::Mode::HAZARD);
+    anim.set_mode(indicator_type::Mode::HAZARD);
     anim.start(time);
     EXPECT_TRUE(layer.is_dirty()) << "Start dirty";
     EXPECT_TRUE(layer.is_visible()) << "Start visible";
@@ -40,8 +41,8 @@ TEST(LEDAnimation, indicators)
     layer.clear_dirty();
 
     // LEDS should be off for the first intervals
-    for (uint i=0; i<Animation::Indicators::OFF_INTERVALS; i++) {
-        time += pdMS_TO_TICKS(Animation::Indicators::INTERVAL);
+    for (uint i=0; i<indicator_type::OFF_INTERVALS; i++) {
+        time += pdMS_TO_TICKS(indicator_type::INTERVAL);
         anim.update(time);
         EXPECT_TRUE(layer.is_dirty()) << "dirty";
         expect_indicator_leds("off", time, anim, layer, 0);
@@ -49,8 +50,8 @@ TEST(LEDAnimation, indicators)
     }
 
     // LEDS should transition to on
-    for (uint i=0; i<Animation::Indicators::LED_COUNT; i++) {
-        time += pdMS_TO_TICKS(Animation::Indicators::INTERVAL);
+    for (uint i=0; i<indicator_type::LED_COUNT; i++) {
+        time += pdMS_TO_TICKS(indicator_type::INTERVAL);
         anim.update(time);
         EXPECT_TRUE(layer.is_dirty()) << "dirty";
         expect_indicator_leds("transition", time, anim, layer, i+1);
@@ -58,16 +59,16 @@ TEST(LEDAnimation, indicators)
     }
 
     // LEDS should stay on
-    for (uint i=0; i<Animation::Indicators::ON_INTERVALS; i++) {
-        time += pdMS_TO_TICKS(Animation::Indicators::INTERVAL);
+    for (uint i=0; i<indicator_type::ON_INTERVALS; i++) {
+        time += pdMS_TO_TICKS(indicator_type::INTERVAL);
         anim.update(time);
         EXPECT_TRUE(layer.is_dirty()) << "dirty";
-        expect_indicator_leds("on", time, anim, layer, Animation::Indicators::LED_COUNT);
+        expect_indicator_leds("on", time, anim, layer, indicator_type::LED_COUNT);
         layer.clear_dirty();
     }
 
     // Finally back to off
-    time += pdMS_TO_TICKS(Animation::Indicators::INTERVAL);
+    time += pdMS_TO_TICKS(indicator_type::INTERVAL);
     anim.update(time);
     EXPECT_TRUE(layer.is_dirty()) << "dirty";
     expect_indicator_leds("final", time, anim, layer, 0);

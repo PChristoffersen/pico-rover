@@ -46,15 +46,17 @@ target_link_libraries(pico_test INTERFACE
 
 rover_add_test(test_color SOURCES 
     test_color.cpp
-    ${CMAKE_SOURCE_DIR}/src/led/color.cpp
-    ${CMAKE_SOURCE_DIR}/src/led/color_hsv.cpp
+    ${CMAKE_SOURCE_DIR}/libs/led_strip/src/color.cpp
+    ${CMAKE_SOURCE_DIR}/libs/led_strip/src/color_hsv.cpp
 )
+target_include_directories(test_color PRIVATE ${PROJECT_SOURCE_DIR}/libs/led_strip/include)
 
 rover_add_test(test_animation SOURCES 
     test_animation.cpp
-    ${CMAKE_SOURCE_DIR}/src/led/color.cpp
-    ${CMAKE_SOURCE_DIR}/src/led/color_hsv.cpp
+    ${CMAKE_SOURCE_DIR}/libs/led_strip/src/color.cpp
+    ${CMAKE_SOURCE_DIR}/libs/led_strip/src/color_hsv.cpp
 )
+target_include_directories(test_animation PRIVATE ${PROJECT_SOURCE_DIR}/libs/led_strip/include)
 
 rover_add_test(test_oled SOURCES 
     test_oled.cpp
