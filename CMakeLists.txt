@@ -30,7 +30,6 @@ set(PICO_BOARD pico)
 pico_sdk_init()
 
 
-
 if(NOT PICO_PLATFORM STREQUAL "host")
 
 add_executable(${PROJECT_NAME} 
@@ -51,9 +50,8 @@ add_executable(${PROJECT_NAME}
     src/motor/encoder.cpp
     src/motor/servo.cpp
     src/oled/control.cpp
-    src/oled/display.cpp
-    src/radio/frsky_mapping.cpp
-    src/radio/frsky_receiver.cpp
+    src/oled/ssd1306_display.cpp
+    src/radio/radio.cpp
     src/sensor/bno055.cpp
     src/sensor/pico_adc.cpp
     src/sensor/ina219.cpp
@@ -90,7 +88,7 @@ endif()
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/src)
 #target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_UART_ENABLE_CRLF_SUPPORT=0)
+add_compile_definitions(PICO_UART_ENABLE_CRLF_SUPPORT=0)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_ENABLE_CRLF_SUPPORT=0)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_DEFAULT_CRLF=0)
 target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_UART_TX_PIN=16)
@@ -149,6 +147,7 @@ target_link_libraries(${PROJECT_NAME}
     pico_multicore
     tinyusb_device 
     tinyusb_board
+    fbus2
 )
  
 # Add any user requested libraries
@@ -175,6 +174,9 @@ endif()
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/libs/micro_ros_raspberrypi_pico_sdk/libmicroros/include)
 target_link_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/libs/micro_ros_raspberrypi_pico_sdk/libmicroros)
 target_link_libraries(${PROJECT_NAME} microros)
+
+
+add_subdirectory(libs)
 
 
 

@@ -21,15 +21,24 @@
 #include <liberationmono_24.font.h>
 #include <liberationsans_16.font.h>
 #include <liberationsans_24.font.h>
-#include "fixed_5x8.font.h"
-#include "fixed_8x8.font.h"
-#include "fixed_12x16.font.h"
-#include "fixed_16x32.font.h"
+#include <oled/fixed_5x8.font.h>
+#include <oled/fixed_8x8.font.h>
+#include <oled/fixed_12x16.font.h>
+#include <oled/fixed_16x32.font.h>
 
 namespace OLED {
 
+
+Control::State::State() : 
+    armed { false },
+    battery_level { UINT32_MAX }
+{
+
+}
+
+
 Control::Control(Robot &robot) :
-    m_display { OLED_ADDRESS, OLED_TYPE },
+    m_display { OLED_ADDRESS },
     m_framebuffer(m_display.framebuffer()),
     m_robot { robot },
     m_sem { nullptr },
@@ -47,26 +56,38 @@ inline void Control::run()
     TickType_t last_time = xTaskGetTickCount();
     TickType_t last_radio = last_time;
     TickType_t last_battery = last_time;
+    TickType_t last_armed = last_time;
+
+    m_framebuffer.draw_bitmap((m_framebuffer.width()-Resource::Image::Raspberry_Logo.width())/2, (m_framebuffer.height()-Resource::Image::Raspberry_Logo.height())/2, Resource::Image::Raspberry_Logo);
+    m_display.update_sync();
 
     xTaskDelayUntil(&last_time, pdMS_TO_TICKS(START_DELAY_MS));
 
+    m_framebuffer.clear();
+    update_armed(true);
+    update_battery(true);
+    update_radio(true);
+    
+
     while (true) {
-        xSemaphoreTake(m_sem, portMAX_DELAY);
         TickType_t now = xTaskGetTickCount();
 
         if (now-last_radio >= pdMS_TO_TICKS(RADIO_INTERVAL_MS)) {
-            update_radio();
+            update_radio(false);
             last_radio = now;
         }
         if (now-last_battery >= pdMS_TO_TICKS(BATTERY_INTERVAL_MS)) {
-            update_battery();
+            update_battery(false);
             last_battery = now;
+        }
+        if (now-last_armed >= pdMS_TO_TICKS(ARMED_INTERVAL_MS)) {
+            update_armed(false);
+            last_armed = now;
         }
 
         if (m_display.update_needed()) {
             m_display.update();
         }
-        xSemaphoreGive(m_sem);
 
         xTaskDelayUntil(&last_time, pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
     }
@@ -75,16 +96,11 @@ inline void Control::run()
 
 void Control::init()
 {
-    m_battery_last_level = UINT32_MAX;
     m_battery_show = true;
 
     m_display.init();
 
     if (m_display.present()) {
-        m_framebuffer.draw_bitmap((m_framebuffer.width()-Resource::Image::Raspberry_Logo.width())/2, (m_framebuffer.height()-Resource::Image::Raspberry_Logo.height())/2, Resource::Image::Raspberry_Logo);
-        m_display.update_sync();
-
-        m_framebuffer.clear();
         m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<Control*>(arg)->run(); }, "Display", TASK_STACK_SIZE, this, DISPLAY_TASK_PRIORITY, m_task_stack, &m_task_buf);
         assert(m_task);
     }
@@ -102,15 +118,41 @@ void Control::off()
 }
 
 
-void Control::update_battery()
+
+void Control::update_armed(bool force)
+{
+    bool armed = m_robot.is_armed();
+
+    if (!force && m_state_drawn.armed==armed)
+        return;
+
+    m_state_drawn.armed = armed;
+
+    constexpr int AREA_LEFT   {  8 };
+    constexpr int AREA_TOP    {  0 };
+    constexpr int AREA_WIDTH  { 24 };
+    constexpr int AREA_HEIGHT {  8 };
+
+    constexpr auto &font { Resource::Font::Fixed_5x8 };
+
+    m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, framebuffer_type::DrawOp::SUBTRACT);
+    if (m_state_drawn.armed) {
+        m_framebuffer.draw_text(AREA_LEFT, AREA_TOP, "ARMED", font);
+    }
+    else {
+    }
+}
+
+
+void Control::update_battery(bool force)
 {
     float vbat = m_robot.battery_sensor().get_bus_voltage();
     float vsys = m_robot.sys_sensor().get_vsys();
     float current = m_robot.battery_sensor().get_current();
-    uint level = battery_level(vbat);
     bool critical = vbat < battery_critical();
+    auto level = battery_level(vbat);
 
-    if (critical || level != m_battery_last_level) {
+    if (force || critical || m_state_drawn.battery_level != level) {
         // Update battery icon and percent
         constexpr int AREA_LEFT  { 128-Resource::Image::Battery.width() };
         constexpr int AREA_TOP   {  0 };
@@ -140,7 +182,7 @@ void Control::update_battery()
         sprintf(text, "%u", level);
         m_framebuffer.draw_text(AREA_LEFT+(Resource::Image::Battery.width()-font.width(text))/2, AREA_TOP+Resource::Image::Battery.height(), text, font);
 
-        m_battery_last_level = level;
+        m_state_drawn.battery_level = level;
     }
 
     {
@@ -179,11 +221,13 @@ void Control::update_battery()
 }
 
 
-void Control::update_radio()
+void Control::update_radio(bool force)
 {
+    m_robot.receiver().lock();
     auto flags = m_robot.receiver().flags();
     auto sync= m_robot.receiver().sync();
     auto rssi = m_robot.receiver().rssi();
+    m_robot.receiver().unlock();
 
     constexpr int TEXT_WIDTH  { 12 };
     constexpr int AREA_LEFT   { 128-Resource::Image::Battery.width()-20-TEXT_WIDTH };
@@ -224,29 +268,5 @@ void Control::update_radio()
         }
     }
 }
-
-
-void Control::update_armed(bool armed) 
-{
-    constexpr int AREA_LEFT   {  8 };
-    constexpr int AREA_TOP    {  0 };
-    constexpr int AREA_WIDTH  { 24 };
-    constexpr int AREA_HEIGHT {  8 };
-
-    constexpr auto &font { Resource::Font::Fixed_5x8 };
-
-
-    xSemaphoreTake(m_sem, portMAX_DELAY);
-
-    m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, framebuffer_type::DrawOp::SUBTRACT);
-    if (armed) {
-        m_framebuffer.draw_text(AREA_LEFT, AREA_TOP, "ARMED", font);
-    }
-    else {
-    }
-
-    xSemaphoreGive(m_sem);
-}
-
 
 }

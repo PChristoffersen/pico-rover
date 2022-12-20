@@ -24,37 +24,37 @@ void Provider::init()
 
 
 
-Radio::FrSky::Telemetry Provider::get_secondary()
+Radio::Telemetry Provider::get_secondary()
 {
     switch (m_secondary++) {
         case 0:
             {
                 auto voltage = m_robot.battery_sensor().get_bus_voltage();
-                return Radio::FrSky::Telemetry::cells(0x00, 0, 2, voltage/2.0f, voltage/2.0f);
+                return Radio::Telemetry::cells(0x00, 0, 2, voltage/2.0f, voltage/2.0f);
             }
         case 1:
             {
                 auto current = m_robot.battery_sensor().get_current();
-                return Radio::FrSky::Telemetry::current(0x00, current);
+                return Radio::Telemetry::current(0x00, current);
             }
         case 2:
             {
                 auto temp = m_robot.sys_sensor().get_temp();
-                return Radio::FrSky::Telemetry::temperature1(0, temp);
+                return Radio::Telemetry::temperature1(0, temp);
             }
         case 4:
             {
                 m_secondary = 0;
                 auto voltage = m_robot.sys_sensor().get_vsys();
-                return Radio::FrSky::Telemetry::a3(0, voltage);
+                return Radio::Telemetry::a3(0, voltage);
             }
     }
 
-    return Radio::FrSky::Telemetry::null();
+    return Radio::Telemetry::null();
 }
 
 
-Radio::FrSky::Telemetry Provider::get_next_telemetry()
+Radio::Telemetry Provider::get_next_telemetry()
 {
     m_count++;
 
@@ -67,20 +67,20 @@ Radio::FrSky::Telemetry Provider::get_next_telemetry()
         case 3:
             {
                 auto &encoder = m_robot.motors()[prim].encoder();
-                return Radio::FrSky::Telemetry::rpm(encoder.id(), encoder.rpm());
+                return Radio::Telemetry::rpm(encoder.id(), encoder.rpm());
             }
         case 4:
-            return Radio::FrSky::Telemetry::diy(0, m_robot.imu().heading()*180.0f/static_cast<float>(M_PI));
+            return Radio::Telemetry::diy(0, m_robot.imu().heading()*180.0f/static_cast<float>(M_PI));
         case 5:
-            return Radio::FrSky::Telemetry::diy(1, m_robot.imu().pitch()*180.0f/static_cast<float>(M_PI));
+            return Radio::Telemetry::diy(1, m_robot.imu().pitch()*180.0f/static_cast<float>(M_PI));
         case 6:
-            return Radio::FrSky::Telemetry::diy(2, m_robot.imu().roll()*180.0f/static_cast<float>(M_PI));
+            return Radio::Telemetry::diy(2, m_robot.imu().roll()*180.0f/static_cast<float>(M_PI));
         default:
             m_primary = 0;
             return get_secondary();
     }
 
-    return Radio::FrSky::Telemetry::null();
+    return Radio::Telemetry::null();
 }
 
 

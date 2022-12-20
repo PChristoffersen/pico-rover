@@ -4,9 +4,14 @@
 
 namespace LED::Animation {
 
-    class Indicators : public Periodic {
+    template<size_t NLEDS>
+    class Indicators : public Periodic<NLEDS> {
         public:
-            static constexpr interval_type INTERVAL { 150 };
+            using interval_type = typename Periodic<NLEDS>::interval_type;
+            using layer_type = typename Periodic<NLEDS>::layer_type;
+            using Periodic<NLEDS>::m_layer;
+
+            static constexpr interval_type INTERVAL { pdMS_TO_TICKS(150) };
             static constexpr size_t OFF_INTERVALS { 3 };
             static constexpr size_t ON_INTERVALS { 2 };
             static constexpr size_t LED_COUNT { 4 };
@@ -21,7 +26,7 @@ namespace LED::Animation {
             };
 
             Indicators(layer_type &layer) : 
-                Periodic { layer, INTERVAL },
+                Periodic<NLEDS> { layer, INTERVAL },
                 m_mode { Mode::NONE },
                 m_state { 0 }
             {

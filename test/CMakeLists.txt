@@ -29,7 +29,10 @@ endfunction()
 
 
 add_library(pico_test INTERFACE)
-target_include_directories(pico_test INTERFACE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(pico_test INTERFACE 
+    ${CMAKE_SOURCE_DIR}/src
+    ${PROJECT_BINARY_DIR}/generated
+)
 target_link_libraries(pico_test INTERFACE 
     FreeRTOS-Kernel
     pico_stdlib

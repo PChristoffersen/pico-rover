@@ -10,16 +10,20 @@
  * Implementation of the FrSky FBus2 protocol. 
  * 
  */
-#include "frsky_receiver.h"
+#include <fbus2/receiver.h>
 
 #include <pico/stdlib.h>
-#include <hardware/uart.h>
 
-#include <util/debug.h>
-#include <util/locking.h>
-#include "frsky_protocol.h"
+#include "protocol.h"
 
-namespace Radio::FrSky {
+#ifndef NDEBUG
+#define debugf(X...) { printf(X); }
+#else
+#define debugf(X...) { }
+#endif
+
+
+namespace Radio::FBus2 {
 
 
 Receiver *Receiver::m_instance = nullptr;
@@ -27,11 +31,10 @@ Receiver *Receiver::m_instance = nullptr;
 
 
 
-Receiver::Receiver(uart_inst_t *uart, uint baudrate, uint tx_pin, uint rx_pin) :
+Receiver::Receiver(uint baudrate, UBaseType_t task_priority, UBaseType_t lower_task_priority) :
     m_baudrate { baudrate },
-    m_tx_pin { tx_pin },
-    m_rx_pin { rx_pin },
-    m_uart { uart },
+    m_task_priority { task_priority },
+    m_lower_task_priority { lower_task_priority },
     m_task { nullptr }, 
     m_rx_scratch_size { 0 },
     m_rx_buffer { nullptr },
@@ -39,6 +42,9 @@ Receiver::Receiver(uart_inst_t *uart, uint baudrate, uint tx_pin, uint rx_pin) :
     m_state { State::SYNCING },
     m_control_packets { 0 }
 {
+    static_assert(RX_SCRATCH_SIZE >= sizeof(fbus_control_24_t));
+    static_assert(TX_BUFFER_SIZE >= sizeof(fbus_uplink_t));
+
     assert(m_instance==nullptr);
     m_instance = this;
     m_mutex = xSemaphoreCreateBinaryStatic(&m_mutex_buf);
@@ -57,34 +63,20 @@ void Receiver::init()
     m_tx_buffer = xStreamBufferCreateStatic(TX_BUFFER_SIZE, 1, m_tx_buffer_data, &m_tx_buffer_buf);
     assert(m_tx_buffer);
 
-    #ifndef DEBUG_USE_RADIO_PINS
-    gpio_set_function(m_tx_pin, GPIO_FUNC_UART);
-    gpio_set_function(m_rx_pin, GPIO_FUNC_UART);
-    #endif
-
-    uart_init(m_uart, m_baudrate);
-    #if PICO_UART_ENABLE_CRLF_SUPPORT
-    uart_set_translate_crlf(m_uart, false);
-    #endif
+    hardware_init();
 
     begin_sync();
 
-    m_task = xTaskCreateStatic([](auto args){ reinterpret_cast<Receiver*>(args)->run(); }, "RC", TASK_STACK_SIZE, this, RECEIVER_TASK_PRIORITY, m_task_stack, &m_task_buf);
+    m_task = xTaskCreateStatic([](auto args){ reinterpret_cast<Receiver*>(args)->run(); }, "RC", TASK_STACK_SIZE, this, m_task_priority, m_task_stack, &m_task_buf);
     #if FREE_RTOS_KERNEL_SMP && configNUM_CORES > 1
     vTaskCoreAffinitySet(m_task, 1<<ISR_CORE);
     #endif
     assert(m_task);
 
-    m_task_lower = xTaskCreateStatic([](auto args){ reinterpret_cast<Receiver*>(args)->run_lower(); }, "RCLower", TASK_LOWER_STACK_SIZE, this, RECEIVER_LOWER_TASK_PRIORITY, m_task_lower_stack, &m_task_lower_buf);
+    m_task_lower = xTaskCreateStatic([](auto args){ reinterpret_cast<Receiver*>(args)->run_lower(); }, "RCLower", TASK_LOWER_STACK_SIZE, this, m_lower_task_priority, m_task_lower_stack, &m_task_lower_buf);
     assert(m_task_lower);
 }
 
-
-
-inline void Receiver::irq_set_tx_enable(bool enable)
-{
-    hw_write_masked(&uart_get_hw(m_uart)->imsc, bool_to_bit(enable) << UART_UARTIMSC_TXIM_LSB, UART_UARTIMSC_TXIM_BITS);
-}
 
 
 void Receiver::rx_scratch_recv(size_t bytes)
@@ -108,66 +100,8 @@ void Receiver::rx_scratch_pop(size_t bytes)
 }
 
 
-void Receiver::tx_send(const uint8_t *buf, size_t sz)
-{
-    while (uart_is_writable(m_uart) && sz) {
-        uint8_t ch = *buf;
-        uart_write_blocking(m_uart, &ch, sizeof(ch));
-        sz-=1;
-        buf++;
-    }
-    if (sz) {
-        xStreamBufferSend(m_tx_buffer, buf, sz, portMAX_DELAY);
-        irq_set_tx_enable(true);
-    }
-}
 
 
-
-
-
-
-inline void Receiver::isr_handler()
-{
-    uint8_t ch;
-
-    auto status = uart_get_hw(m_uart)->mis;
-
-    while (uart_is_readable(m_uart)) {
-        uart_read_blocking(m_uart, &ch, sizeof(ch));
-        if (xStreamBufferSendFromISR(m_rx_buffer, &ch, 1, nullptr)!=sizeof(ch))
-            break;
-    }
-    auto saved = taskENTER_CRITICAL_FROM_ISR();
-    m_last_rx_time = get_absolute_time();
-    taskEXIT_CRITICAL_FROM_ISR(saved);
-
-    if (status & UART_UARTMIS_TXMIS_BITS) {
-        while (uart_is_writable(m_uart) && !xStreamBufferIsEmpty(m_tx_buffer)) {
-            if (xStreamBufferReceiveFromISR(m_tx_buffer, &ch, sizeof(ch), nullptr)==sizeof(ch)) {
-                uart_write_blocking(m_uart, &ch, sizeof(ch));
-            }
-        }
-        if (xStreamBufferIsEmpty(m_tx_buffer)) {
-            irq_set_tx_enable(false);
-        }
-    }
-}
-
-
-
-void Receiver::init_isr()
-{
-    uint UART_IRQ = m_uart == uart0 ? UART0_IRQ : UART1_IRQ;
-    irq_set_exclusive_handler(UART_IRQ, +[]() { m_instance->isr_handler(); });
-    irq_set_enabled(UART_IRQ, true);
-
-    uart_get_hw(m_uart)->imsc = (1u << UART_UARTIMSC_RTIM_LSB)|(1u << UART_UARTIMSC_RXIM_LSB);
-    // Set minimum rx threshold to 1/2
-    hw_write_masked(&uart_get_hw(m_uart)->ifls, 0b010 << UART_UARTIFLS_RXIFLSEL_LSB, UART_UARTIFLS_RXIFLSEL_BITS);
-    // Set maximum tx threshold to 1/2
-    hw_write_masked(&uart_get_hw(m_uart)->ifls, 0b000 << UART_UARTIFLS_TXIFLSEL_LSB, UART_UARTIFLS_TXIFLSEL_BITS);
-}
 
 
 
@@ -380,7 +314,7 @@ void Receiver::do_read_downlink()
     rx_scratch_pop(FBUS_DOWNLINK_SIZE);
 
     // Check if we need to respond to downlink
-    if (downlink.id == RECEIVER_ID && m_telemetry_provider) {
+    if (downlink.id == RECEIVER_ID) {
         begin_write_uplink();
         return;
     }
@@ -406,7 +340,7 @@ void Receiver::do_write_uplink()
         return;
     }
 
-    Telemetry event = m_telemetry_provider->get_next_telemetry();
+    Telemetry event = get_next_telemetry();
 
     // Start sending uplink    
     fbus_uplink_t uplink;
@@ -453,7 +387,7 @@ void Receiver::do_read_uplink()
 
 void Receiver::run()
 {
-    init_isr();
+    task_init();
 
     // Allow task to run on all cores after we have setup interrupt handler
     #if FREE_RTOS_KERNEL_SMP && configNUM_CORES > 1
@@ -488,7 +422,6 @@ void Receiver::run()
 void Receiver::run_lower()
 {
     channels_type channels;
-    mapping_type mapping;
 
     while (true) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -497,8 +430,7 @@ void Receiver::run_lower()
         channels = m_channels;
         xSemaphoreGive(m_mutex);
 
-        mapping.set(channels);
-        m_control_callback(channels, mapping);
+        on_data(channels);
     }
 }
 

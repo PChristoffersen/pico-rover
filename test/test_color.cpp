@@ -187,7 +187,7 @@ TEST(Color, Blend) {
 
 
     dst = RGB::WHITE;
-    dst << RGBA(0xFF, 0x00, 0x00, 0x80);
+    dst << RGBA(0xFF, 0xFF, 0xFF, 0x80);
     EXPECT_EQ(dst.red(),   0xFF) << "White2(red) " << dst;
     EXPECT_EQ(dst.green(), 0xFF) << "White2(green) " << dst;
     EXPECT_EQ(dst.blue(),  0xFF) << "White2(blue) " << dst;

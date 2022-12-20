@@ -27,7 +27,7 @@ namespace LED {
             #endif
             using strip_type = Strip<LED_STRIP_PIXEL_COUNT>;
 
-            enum class Mode : uint {
+            enum class AnimationMode : uint {
                 BLACK,
                 BLINK,
                 CHASE,
@@ -35,6 +35,8 @@ namespace LED {
                 KNIGHT_RIDER,
                 _LAST
             };
+
+            using IndicatorMode = Animation::Indicators<LED_STRIP_PIXEL_COUNT>::Mode;
 
             Control(Robot &robot);
             Control(const Control&) = delete; // No copy constructor
@@ -44,7 +46,8 @@ namespace LED {
 
             void update_connected(bool connected);
 
-            void set_mode(Mode mode);
+            void set_animation_mode(AnimationMode mode);
+            void set_indicator_mode(IndicatorMode mode);
 
 
             led_type &builtin() { return m_builtin; };
@@ -54,11 +57,11 @@ namespace LED {
             static constexpr uint TASK_STACK_SIZE    { configMINIMAL_STACK_SIZE };
             static constexpr uint UPDATE_INTERVAL_MS { 5u };
 
-            static constexpr size_t NUM_ANIMATIONS { static_cast<size_t>(Mode::_LAST) };
+            static constexpr size_t NUM_ANIMATIONS { static_cast<size_t>(AnimationMode::_LAST) };
             using color_buffer_type = Color::Buffer<Color::RGBW, LED_STRIP_PIXEL_COUNT>;
-            using animations_type = std::array<std::unique_ptr<Animation::Base>, NUM_ANIMATIONS>;
-            using animations_layer_type = Color::Layer<Color::RGBA, LED_STRIP_PIXEL_COUNT>;
-            using indicator_type = Animation::Indicators;
+            using animation_type = std::unique_ptr<Animation::Base>;
+            using animation_layer_type = Color::Layer<Color::RGBA, LED_STRIP_PIXEL_COUNT>;
+            using indicator_type = Animation::Indicators<LED_STRIP_PIXEL_COUNT>;
             using indicator_layer_type = Color::Layer<Color::RGBA, LED_STRIP_PIXEL_COUNT>;
 
             StaticSemaphore_t m_mutex_buf;
@@ -74,15 +77,14 @@ namespace LED {
 
             Robot &m_robot;
 
-            Mode m_mode;
-            Mode m_mode_set;
-
-
-            animations_type m_animations;
-            animations_layer_type m_animations_layer;
+            animation_type m_animation;
+            animation_layer_type m_animations_layer;
+            AnimationMode m_animation_mode;
+            AnimationMode m_animation_mode_set;
 
             indicator_type m_indicator;
             indicator_layer_type m_indicator_layer;
+            IndicatorMode m_indicator_mode_set;
 
             inline void run();
 

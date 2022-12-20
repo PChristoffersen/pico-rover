@@ -4,10 +4,15 @@
 
 namespace LED::Animation {
 
-    class KnightRider : public Periodic {
+    template<size_t NLEDS>
+    class KnightRider : public Periodic<NLEDS> {
         public:
+            using interval_type = typename Periodic<NLEDS>::interval_type;
+            using layer_type = typename Periodic<NLEDS>::layer_type;
+            using Periodic<NLEDS>::m_layer;
+
             KnightRider(layer_type &layer, uint start, uint stop) : 
-                Periodic { layer, INTERVAL },
+                Periodic<NLEDS> { layer, INTERVAL },
                 m_start { start },
                 m_stop { stop },
                 m_pos { 0 }, 
@@ -38,7 +43,7 @@ namespace LED::Animation {
             }
 
         private:
-            static constexpr interval_type INTERVAL { 70 };
+            static constexpr interval_type INTERVAL { pdMS_TO_TICKS(70) };
             static constexpr Color::RGBA COLOR1 { 0xFF, 0x00, 0x00, 0xFF };
             static constexpr Color::RGBA COLOR2 { 0xFF, 0x00, 0x00, 0x40 };
             const uint m_start;

@@ -76,8 +76,7 @@ static constexpr uint BOARD_I2C_SCL_PIN { PICO_DEFAULT_I2C_SCL_PIN };
 static constexpr uint BOARD_I2C_SPEED { 1000000u }; // Fast mode plus (1Mbps)
 
 /* OLED */
-#define OLED_ADDRESS OLED::Display::Address::DISPLAY1
-#define OLED_TYPE    OLED::Display::Type::SSD1306_128x64
+static constexpr uint8_t OLED_ADDRESS { 0x3D };
 
 
 /* Debug */

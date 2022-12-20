@@ -1,19 +1,19 @@
 #pragma once
 
 #include <pico/stdlib.h>
-#include <radio/frsky_telemetry.h>
+#include <radio/radio.h>
 
 class Robot;
 
 namespace Telemetry {
 
-    class Provider : public Radio::FrSky::TelemetryProvider {
+    class Provider : public Radio::TelemetryProvider {
         public:
             Provider(Robot &robot);
 
             void init();
 
-            virtual  Radio::FrSky::Telemetry get_next_telemetry();
+            virtual  Radio::Telemetry get_next_telemetry();
 
             #ifndef NDEBUG
             absolute_time_t m_last_print;
@@ -28,7 +28,7 @@ namespace Telemetry {
             uint m_primary;
             uint m_secondary;
 
-            inline Radio::FrSky::Telemetry get_secondary();
+            inline Radio::Telemetry get_secondary();
     };
 
 }

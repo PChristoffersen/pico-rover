@@ -208,14 +208,25 @@ static void init()
         }
 
         switch (mapping.sc()) {
-            case Radio::FrSky::Toggle::P0:
-                robot.leds().set_mode(LED::Control::Mode::BLACK);
+            case Radio::Toggle::P0:
+                robot.leds().set_animation_mode(LED::Control::AnimationMode::BLACK);
                 break;
-            case Radio::FrSky::Toggle::P1:
-                robot.leds().set_mode(LED::Control::Mode::KNIGHT_RIDER);
+            case Radio::Toggle::P1:
+                robot.leds().set_animation_mode(LED::Control::AnimationMode::KNIGHT_RIDER);
                 break;
-            case Radio::FrSky::Toggle::P2:
-                robot.leds().set_mode(LED::Control::Mode::COLOR_CYCLE);
+            case Radio::Toggle::P2:
+                robot.leds().set_animation_mode(LED::Control::AnimationMode::COLOR_CYCLE);
+                break;
+        }
+        switch (mapping.sd()) {
+            case Radio::Toggle::P0:
+                robot.leds().set_indicator_mode(LED::Control::IndicatorMode::NONE);
+                break;
+            case Radio::Toggle::P1:
+                robot.leds().set_indicator_mode(LED::Control::IndicatorMode::HAZARD);
+                break;
+            case Radio::Toggle::P2:
+                robot.leds().set_indicator_mode(LED::Control::IndicatorMode::LEFT);
                 break;
         }
     });

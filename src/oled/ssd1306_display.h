@@ -13,22 +13,19 @@
 
 #include "framebuffer.h"
 
-namespace OLED {
+namespace OLED::SSD1306 {
 
     class Display {
         public:
             using addr_type = uint8_t;
+            using framebuffer_type = Framebuffer128x64;
 
             enum class Address: addr_type {
                 DISPLAY0 = 0x3C,
                 DISPLAY1 = 0x3D,
             };
-            enum class Type {
-                SSD1306_128x64,
-                SSD1306_128x32,
-            };
 
-            Display(Address address, Type type);
+            Display(addr_type address);
             Display(const Display&) = delete; // No copy constructor
             Display(Display&&) = delete; // No move constructor
 
@@ -40,13 +37,13 @@ namespace OLED {
 
             bool update_needed() const { return m_present && m_framebuffer.is_dirty(); }
 
-            Framebuffer128x64 &framebuffer() { return m_framebuffer; }
+            framebuffer_type &framebuffer() { return m_framebuffer; }
 
         private:
             const addr_type m_address;
             bool m_present;
 
-            Framebuffer128x64 m_framebuffer;
+            framebuffer_type m_framebuffer;
 
             void send_cmds(const uint8_t *cmds, uint len);
             void send_data_sync();

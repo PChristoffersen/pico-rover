@@ -6,10 +6,15 @@
 
 namespace LED::Animation {
 
-    class ColorCycle : public Periodic {
+    template<size_t NLEDS>
+    class ColorCycle : public Periodic<NLEDS> {
         public:
+            using interval_type = typename Periodic<NLEDS>::interval_type;
+            using layer_type = typename Periodic<NLEDS>::layer_type;
+            using Periodic<NLEDS>::m_layer;
+
             ColorCycle(layer_type &layer) : 
-                Periodic { layer, INTERVAL },
+                Periodic<NLEDS> { layer, INTERVAL },
                 m_hue { 0 } 
             {
             }
@@ -27,7 +32,7 @@ namespace LED::Animation {
             }
 
         private:
-            static constexpr interval_type INTERVAL { 10 };
+            static constexpr interval_type INTERVAL { pdMS_TO_TICKS(10) };
             static constexpr uint8_t HUE_SPACE { 4u };
             static constexpr uint8_t HUE_ADD { 1u };
             uint8_t m_hue;

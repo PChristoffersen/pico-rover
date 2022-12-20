@@ -11,10 +11,12 @@
 #include <pico/stdlib.h>
 #include <rtos.h>
 
-#include <oled/display.h>
 #include <sensor/ina219.h>
 #include <sensor/pico_adc.h>
+#include <radio/radio.h>
 #include <rtos.h>
+
+#include "ssd1306_display.h"
 
 class Robot;
 
@@ -22,6 +24,8 @@ namespace OLED {
 
     class Control {
         public:
+            using Display = SSD1306::Display;
+
             Control(Robot &robot);
             Control(const Control&) = delete; // No copy constructor
             Control(Control&&) = delete; // No move constructor
@@ -30,18 +34,23 @@ namespace OLED {
 
             void off();
 
-            void update_armed(bool armed);
-
             Display &display() { return m_display; }
 
         private:
-            using framebuffer_type = Framebuffer128x64;
+            using framebuffer_type = Display::framebuffer_type;
             static constexpr uint TASK_STACK_SIZE    { configMINIMAL_STACK_SIZE };
             static constexpr uint UPDATE_INTERVAL_MS { 100u };
 
             static constexpr uint START_DELAY_MS { 5000u };
             static constexpr uint BATTERY_INTERVAL_MS { 200u };
             static constexpr uint RADIO_INTERVAL_MS   { 500u };
+            static constexpr uint ARMED_INTERVAL_MS   { 100u };
+
+            struct State {
+                bool armed;
+                uint battery_level;
+                State();
+            };
 
             Display m_display;
             framebuffer_type &m_framebuffer;
@@ -55,11 +64,13 @@ namespace OLED {
             StackType_t  m_task_stack[TASK_STACK_SIZE];
             TaskHandle_t m_task;
 
-            uint m_battery_last_level;
+            State m_state_drawn;
+
             bool m_battery_show;
 
-            inline void update_battery();
-            inline void update_radio();
+            void update_armed(bool force);
+            void update_battery(bool force);
+            void update_radio(bool force);
 
             inline void run();
 

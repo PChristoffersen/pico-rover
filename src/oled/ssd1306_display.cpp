@@ -1,4 +1,4 @@
-#include "display.h"
+#include "ssd1306_display.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,14 +6,14 @@
 #include <pico/stdlib.h>
 
 #include <util/i2c_bus.h>
-#include "ssd1306.h"
+#include "ssd1306_regs.h"
 
 
-namespace OLED {
+namespace OLED::SSD1306 {
 
 
-Display::Display(Address addr, Type type) : 
-    m_address { static_cast<addr_type>(addr) },
+Display::Display(addr_type addr) : 
+    m_address { addr },
     m_present { false }
 {
 

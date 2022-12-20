@@ -9,7 +9,7 @@
 #include <motor/servo.h>
 #include <led/gpio_led.h>
 #include <led/cyw43_led.h>
-#include <radio/frsky_receiver.h>
+#include <radio/radio.h>
 
 #include <telemetry/provider.h>
 #include <oled/control.h>
@@ -41,9 +41,8 @@ class Robot {
         Motor::DCMotor::array_type &motors() { return m_motors; }
 
         // Radio
-        Radio::FrSky::Receiver &receiver() { return m_receiver; }
+        Radio::Receiver &receiver() { return m_receiver; }
 
-        Telemetry::Provider &telemetry_provider() { return m_telemetry_provider; }
         OLED::Control &oled() { return m_oled; }
         LED::Control &leds() { return m_leds; }
 
@@ -55,7 +54,7 @@ class Robot {
         Motor::Servo::array_type   m_servos;
         Motor::DCMotor::array_type m_motors;
 
-        Radio::FrSky::Receiver m_receiver;
+        Radio::Receiver m_receiver;
 
         Telemetry::Provider m_telemetry_provider;
         OLED::Control m_oled;

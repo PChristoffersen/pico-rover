@@ -8,12 +8,12 @@
  * @copyright Copyright (c) 2022
  */
 
-#include "frsky_mapping.h"
+#include <fbus2/mapping.h>
 
 #include <stdio.h>
 
 
-namespace Radio::FrSky {
+namespace Radio::FBus2 {
 
 
 TaranisX9DPlus::TaranisX9DPlus() :

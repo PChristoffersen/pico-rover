@@ -11,9 +11,9 @@
 #include <array>
 #include <pico/stdlib.h>
 
-#include "frsky_channels.h"
+#include "channels.h"
 
-namespace Radio::FrSky {
+namespace Radio::FBus2 {
 
     enum class Toggle : uint {
         P0 = 0,

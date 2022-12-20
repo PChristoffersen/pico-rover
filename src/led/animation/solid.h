@@ -6,10 +6,14 @@
 
 namespace LED::Animation {
 
-    class Solid : public Base {
+    template<size_t NLEDS>
+    class Solid : public BaseTemplate<NLEDS> {
         public:
+            using layer_type = typename BaseTemplate<NLEDS>::layer_type;
+            using BaseTemplate<NLEDS>::m_layer;
+
             Solid(layer_type &layer, Color::RGBA color) : 
-                Base { layer },
+                BaseTemplate<NLEDS> { layer },
                 m_color { color }
             {
             }

@@ -6,10 +6,15 @@
 
 namespace LED::Animation {
 
-    class Blink : public Periodic {
+    template<size_t NLEDS>
+    class Blink : public Periodic<NLEDS> {
         public:
+            using interval_type = typename Periodic<NLEDS>::interval_type;
+            using layer_type = typename Periodic<NLEDS>::layer_type;
+            using Periodic<NLEDS>::m_layer;
+
             Blink(layer_type &layer, Color::RGB color, interval_type interval) : 
-                Periodic { layer, interval },
+                Periodic<NLEDS> { layer, interval },
                 m_color { color },
                 m_state { false } 
             {

@@ -23,7 +23,7 @@ Robot::Robot():
     },
 
     // Radio
-    m_receiver { RADIO_RECEIVER_UART, RADIO_RECEIVER_BAUD_RATE, RADIO_RECEIVER_TX_PIN, RADIO_RECEIVER_RX_PIN },
+    m_receiver {},
 
     // Higher level objects
     m_telemetry_provider { *this },
@@ -76,10 +76,6 @@ void Robot::init()
             m_connected_callback(m_connected);
             m_leds.update_connected(m_connected);
         }
-    });
-
-    m_armed_callback.add([this](auto armed){
-        m_oled.update_armed(armed);
     });
 
 }

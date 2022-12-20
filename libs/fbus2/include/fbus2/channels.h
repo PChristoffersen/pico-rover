@@ -11,7 +11,7 @@
 #include <array>
 #include <pico/stdlib.h>
 
-namespace Radio::FrSky {
+namespace Radio::FBus2 {
 
     class ChannelValue {
         public:

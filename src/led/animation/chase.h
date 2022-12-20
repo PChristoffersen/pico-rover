@@ -6,10 +6,15 @@
 
 namespace LED::Animation {
 
-    class Chase : public Periodic {
+    template<size_t NLEDS>
+    class Chase : public Periodic<NLEDS> {
         public:
+            using interval_type = typename Periodic<NLEDS>::interval_type;
+            using layer_type = typename Periodic<NLEDS>::layer_type;
+            using Periodic<NLEDS>::m_layer;
+
             Chase(layer_type &layer) : 
-                Periodic { layer, INTERVAL },
+                Periodic<NLEDS> { layer, INTERVAL },
                 m_pos { 0 },
                 m_color_num { 0 }
             {
@@ -34,7 +39,7 @@ namespace LED::Animation {
             }
 
         private:
-            static constexpr interval_type INTERVAL { 50 };
+            static constexpr interval_type INTERVAL { pdMS_TO_TICKS(50) };
             static constexpr Color::RGBW COLORS[] {
                 Color::RGB::RED,
                 Color::RGB::GREEN,

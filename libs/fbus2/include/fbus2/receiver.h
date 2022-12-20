@@ -10,44 +10,57 @@
 
 #include <array>
 #include <functional>
+#include <atomic>
 #include <stdio.h>
 #include <pico/stdlib.h>
 #include <pico/mutex.h>
-#include <rtos.h>
+#include <FreeRTOS.h>
+#include <semphr.h>
+#include <stream_buffer.h>
 
-#include <util/ringbuffer.h>
-#include <util/locking.h>
-#include <util/callback.h>
-#include "frsky_channels.h"
-#include "frsky_telemetry.h"
-#include "frsky_mapping.h"
+#include "channels.h"
+#include "telemetry.h"
+#include "mapping.h"
+#include "ringbuffer.h"
 
-namespace Radio::FrSky {
+namespace Radio::FBus2 {
 
     class Receiver {
+        private:
+            class semaphore_guard_t {
+                public:
+                    semaphore_guard_t(SemaphoreHandle_t sem) : m_sem { sem } 
+                    { 
+                        
+                    }
+                    ~semaphore_guard_t() {
+                        
+                    }
+                private:
+                    SemaphoreHandle_t m_sem;
+            };
+            //#define SEMAPHORE_GUARD(sem) semaphore_guard_t _guard(sem);
+
         public:
+            static constexpr uint8_t RECEIVER_ID  { 0x67 };
             static constexpr size_t MAX_CHANNELS { 24 };
-            using mapping_type = TaranisX9DPlus;        
             using channels_type = Channels;
 
-            using control_cb_type = Callback<const channels_type &, const mapping_type &>;
-
-
-            Receiver(uart_inst_t *uart, uint baudrate, uint tx_pin, uint rx_pin);
+            Receiver(uint baudrate, UBaseType_t task_priority, UBaseType_t lower_task_priority);
             Receiver(const Receiver&) = delete; // No copy constructor
             Receiver(Receiver&&) = delete; // No move constructor
 
             void init();
 
-            void add_callback(control_cb_type::call_type callback) { m_control_callback.add(callback); }
-            void set_telemetry_provider(TelemetryProvider *provider) { m_telemetry_provider = provider; }
+            void lock() const { xSemaphoreTake(m_mutex, portMAX_DELAY); }
+            void unlock() const { xSemaphoreGive(m_mutex); }
 
-            bool connected() const            { SEMAPHORE_GUARD(m_mutex); return !m_channels.flags().frameLost(); }
-            channels_type            channels() const { SEMAPHORE_GUARD(m_mutex); return m_channels; }
-            channels_type::flag_type flags() const { SEMAPHORE_GUARD(m_mutex); return m_channels.flags(); }
-            channels_type::rssi_type rssi() const  { SEMAPHORE_GUARD(m_mutex); return m_channels.rssi(); } 
-            bool                     sync() const  { SEMAPHORE_GUARD(m_mutex); return m_channels.sync(); } 
-            size_t channel_count() const      { SEMAPHORE_GUARD(m_mutex); return m_channels.count(); } 
+            bool connected() const            { return !m_channels.flags().frameLost(); }
+            channels_type            channels() const { return m_channels; }
+            channels_type::flag_type flags() const { return m_channels.flags(); }
+            channels_type::rssi_type rssi() const  { return m_channels.rssi(); } 
+            bool                     sync() const  { return m_channels.sync(); } 
+            size_t channel_count() const      { return m_channels.count(); } 
 
             uint n_control_packets() const   { return m_control_packets; }
             uint n_telemetry_sent() const    { return m_telemetry_sent; }
@@ -58,16 +71,14 @@ namespace Radio::FrSky {
             void print_stats();
             #endif
 
-        private:
+        protected:
             static constexpr uint TASK_STACK_SIZE { configMINIMAL_STACK_SIZE };
             static constexpr uint TASK_LOWER_STACK_SIZE { 2*configMINIMAL_STACK_SIZE };
             static constexpr uint ISR_CORE { 1u };
 
-            static constexpr uint8_t RECEIVER_ID  { 0x67 };
-
             static constexpr size_t RX_BUFFER_SIZE { 128u };
             static constexpr size_t TX_BUFFER_SIZE { 32u };
-            static constexpr size_t RX_SCRATCH_SIZE { sizeof(fbus_control_24_t) };
+            static constexpr size_t RX_SCRATCH_SIZE { 64u };
 
             static constexpr size_t BUFFER_MAX_WAIT_CHARS = 32u;
             static constexpr int64_t SYNC_TIMEOUT = 100000; // 100ms
@@ -83,14 +94,23 @@ namespace Radio::FrSky {
                 READ_UPLINK
             };
 
+            virtual void on_data(const channels_type &channels) = 0;
+            
+            virtual void hardware_init() = 0;
+            virtual void task_init() = 0;
+            virtual Telemetry get_next_telemetry() 
+            {
+                return Telemetry::null();
+            }
+
 
             static Receiver *m_instance;
 
             // Config
             const uint m_baudrate;
-            const uint m_tx_pin;
-            const uint m_rx_pin;
-            uart_inst_t *m_uart;
+            const UBaseType_t m_task_priority;
+            const UBaseType_t m_lower_task_priority;
+
 
             StaticTask_t m_task_buf;
             StackType_t m_task_stack[TASK_STACK_SIZE];
@@ -121,10 +141,6 @@ namespace Radio::FrSky {
             StaticSemaphore_t m_mutex_buf;
             mutable SemaphoreHandle_t m_mutex;
             channels_type m_channels;
-            control_cb_type m_control_callback;
-
-            // Telemetry
-            TelemetryProvider *m_telemetry_provider;
 
             // Stats
             uint m_control_packets;
@@ -133,13 +149,9 @@ namespace Radio::FrSky {
 
             void lost_sync();
 
-            void init_isr();
-            inline void isr_handler();
-            inline void irq_set_tx_enable(bool enable);
-
             void rx_scratch_recv(size_t bytes);
             void rx_scratch_pop(size_t bytes);
-            void tx_send(const uint8_t *buf, size_t sz);
+            virtual void tx_send(const uint8_t *buf, size_t sz) = 0;
 
             inline void begin_sync();
             inline void begin_read_control();
