@@ -26,21 +26,6 @@
 namespace Radio::FBus2 {
 
     class Receiver {
-        private:
-            class semaphore_guard_t {
-                public:
-                    semaphore_guard_t(SemaphoreHandle_t sem) : m_sem { sem } 
-                    { 
-                        
-                    }
-                    ~semaphore_guard_t() {
-                        
-                    }
-                private:
-                    SemaphoreHandle_t m_sem;
-            };
-            //#define SEMAPHORE_GUARD(sem) semaphore_guard_t _guard(sem);
-
         public:
             static constexpr uint8_t RECEIVER_ID  { 0x67 };
             static constexpr size_t MAX_CHANNELS { 24 };

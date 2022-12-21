@@ -3,8 +3,7 @@
 #include <util/callback.h>
 
 #include <sensor/pico_adc.h>
-#include <sensor/ina219.h>
-#include <sensor/bno0055.h>
+#include <sensor/sensors.h>
 #include <motor/dcmotor.h>
 #include <motor/servo.h>
 #include <led/gpio_led.h>

@@ -7,8 +7,8 @@
 Robot::Robot():
     // Sensors
     m_sys_sensor { BATTERY_SENSE_PIN, BATTERY_SENSE_R1, BATTERY_SENSE_R2 },
-    m_battery_sensor { Sensor::INA219::Address::INA0 },
-    m_imu { Sensor::BNO055::Address::PRIMARY },
+    m_battery_sensor { Sensor::INA219::Address::INA0, INA_TASK_PRIORITY },
+    m_imu { Sensor::BNO055::Address::PRIMARY, IMU_TASK_PRIORITY },
 
     // Motors and servms
     m_servos {

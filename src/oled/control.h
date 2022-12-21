@@ -11,7 +11,7 @@
 #include <pico/stdlib.h>
 #include <rtos.h>
 
-#include <sensor/ina219.h>
+#include <sensor/sensors.h>
 #include <sensor/pico_adc.h>
 #include <radio/radio.h>
 #include <rtos.h>

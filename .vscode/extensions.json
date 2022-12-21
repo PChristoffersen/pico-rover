@@ -1,6 +1,7 @@
 {
   "recommendations": [
     "marus25.cortex-debug",
+    "mcu-debug.rtos-views",
     "chris-hock.pioasm",
     "ms-vscode.cmake-tools",
     "ms-vscode.cpptools",

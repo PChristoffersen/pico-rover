@@ -52,9 +52,7 @@ add_executable(${PROJECT_NAME}
     src/oled/control.cpp
     src/oled/ssd1306_display.cpp
     src/radio/radio.cpp
-    src/sensor/bno055.cpp
     src/sensor/pico_adc.cpp
-    src/sensor/ina219.cpp
     src/telemetry/provider.cpp
     src/util/debug.cpp
     src/watchdog/watchdog.cpp
@@ -161,6 +159,8 @@ target_link_libraries(${PROJECT_NAME}
     i2c_bus
     led_strip
     fbus2
+    bno055
+    ina219
 )
 
 

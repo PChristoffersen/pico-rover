@@ -1,4 +1,4 @@
-#include "bno0055.h"
+#include <bno055.h>
 
 #include <stdio.h>
 #include <math.h>
@@ -6,15 +6,15 @@
 #include <hardware/i2c.h>
 
 #include <i2c_bus.h>
-#include <boardconfig.h>
 #include "bno055_regs.h"
 
 
-namespace Sensor {
+namespace BNO055 {
 
 
-BNO055::BNO055(Address addr):
-    m_address { static_cast<addr_type>(addr) },
+Sensor::Sensor(addr_type addr, UBaseType_t task_priority):
+    m_address { addr },
+    m_task_priority { task_priority },
     m_present { false },
     m_task { nullptr }
 {
@@ -23,7 +23,7 @@ BNO055::BNO055(Address addr):
     xSemaphoreGive(m_sem);
 }
 
-inline bool BNO055::write_reg8(uint8_t reg, uint8_t value)
+inline bool Sensor::write_reg8(uint8_t reg, uint8_t value)
 {
     uint8_t buf[2] = { reg, value };
     if (i2c_write_blocking(i2c_default, m_address, buf, sizeof(buf), false) < static_cast<int>(sizeof(buf))) return false;
@@ -32,7 +32,7 @@ inline bool BNO055::write_reg8(uint8_t reg, uint8_t value)
 
 
 
-bool BNO055::read_reg8(uint8_t reg, uint8_t &value)
+bool Sensor::read_reg8(uint8_t reg, uint8_t &value)
 {
     if (i2c_write_blocking(i2c_default, m_address, &reg, sizeof(reg), false) < static_cast<int>(sizeof(reg))) return false;
     if (i2c_read_blocking(i2c_default, m_address, &value, sizeof(value), false) < static_cast<int>(sizeof(value))) return false;
@@ -40,7 +40,7 @@ bool BNO055::read_reg8(uint8_t reg, uint8_t &value)
 }
 
 
-inline bool BNO055::read(uint8_t reg, uint8_t *data, size_t len)
+inline bool Sensor::read(uint8_t reg, uint8_t *data, size_t len)
 {
     if (i2c_write_blocking(i2c_default, m_address, &reg, sizeof(reg), false)<static_cast<int>(sizeof(reg))) return false;
     if (i2c_read_blocking(i2c_default, m_address, data, len, false)<static_cast<int>(len)) return false;
@@ -48,7 +48,7 @@ inline bool BNO055::read(uint8_t reg, uint8_t *data, size_t len)
 }
 
 
-bool BNO055::reset()
+bool Sensor::reset()
 {
     // Reset the chip
     write_reg8(BNO055_SYS_RST_REG, BNO055_SYS_RST_MSK);
@@ -71,14 +71,14 @@ bool BNO055::reset()
 }
 
 
-void BNO055::write_page_id(uint8_t page_id)
+void Sensor::write_page_id(uint8_t page_id)
 {
     write_reg8(BNO055_PAGE_ID_REG, page_id);
     m_page_id = page_id;
 }
 
 
-void BNO055::update_calib()
+void Sensor::update_calib()
 {
     uint8_t reg;
     read_reg8(BNO055_CALIB_STAT_ADDR, reg);
@@ -92,7 +92,7 @@ void BNO055::update_calib()
 
 
 
-void BNO055::run()
+void Sensor::run()
 {
     TickType_t last_time = xTaskGetTickCount();
     TickType_t last_calib = last_time;
@@ -120,7 +120,7 @@ void BNO055::run()
 }
 
 
-void BNO055::init()
+void Sensor::init()
 {
     i2c_bus_acquire_blocking();
 
@@ -205,7 +205,7 @@ void BNO055::init()
 
     i2c_bus_release();
 
-    m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<BNO055*>(arg)->run(); }, "IMU", TASK_STACK_SIZE, this, IMU_TASK_PRIORITY, m_task_stack, &m_task_buf);
+    m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<Sensor*>(arg)->run(); }, "IMU", TASK_STACK_SIZE, this, m_task_priority, m_task_stack, &m_task_buf);
     assert(m_task);
 }
 
@@ -213,10 +213,11 @@ void BNO055::init()
 
 
 #ifndef NDEBUG
-void BNO055::print() const 
+void Sensor::print() const 
 {
-    SEMAPHORE_GUARD(m_sem);
+    lock();
     printf("BNO055:   calib=%u,%u,%u  heading=%5.2f (%5.1f)   pitch=%5.2f (%5.1f)    roll=%5.2f (%5.1f)\n", m_mag_calib, m_accel_calib, m_gyro_calib, m_heading, m_heading*180.0/M_PI, m_pitch, m_pitch*180.0/M_PI, m_roll, m_roll*180.0/M_PI);
+    unlock();
 }
 #endif
 

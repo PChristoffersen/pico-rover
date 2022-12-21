@@ -10,23 +10,24 @@
 
 #include <pico/stdlib.h>
 #include <pico/mutex.h>
+#include <FreeRTOS.h>
+#include <semphr.h>
 
-#include <util/callback.h>
-#include <util/locking.h>
+namespace BNO055 {
 
-namespace Sensor {
-
-    class BNO055 {
+    class Sensor {
         public:
             using addr_type = uint8_t;
             using euler_type = float;
 
-            enum class Address: addr_type {
+            enum Address: addr_type {
                 PRIMARY   = 0x28,
                 ALTERNATE = 0x29,
             };
 
-            BNO055(Address addr = Address::PRIMARY);
+            Sensor(addr_type addr, UBaseType_t task_priority);
+            Sensor(const Sensor&) = delete; // No copy constructor
+            Sensor(Sensor&&) = delete; // No move constructor
 
             void init();
 
@@ -35,9 +36,17 @@ namespace Sensor {
             uint16_t sw_rev() const { return m_sw_rev; }
             uint8_t bl_rev() const { return m_bl_rev; }
 
-            euler_type heading() const { SEMAPHORE_GUARD(m_sem); return m_heading; }
-            euler_type pitch() const   { SEMAPHORE_GUARD(m_sem); return m_pitch; }
-            euler_type roll() const    { SEMAPHORE_GUARD(m_sem); return m_roll; }
+            void lock() const 
+            {
+                xSemaphoreTake(m_sem, portMAX_DELAY);
+            }
+            void unlock() const
+            {
+                xSemaphoreGive(m_sem);
+            }
+            euler_type heading() const { return m_heading; }
+            euler_type pitch() const   { return m_pitch; }
+            euler_type roll() const    { return m_roll; }
 
             #ifndef NDEBUG
             void print() const;
@@ -52,6 +61,7 @@ namespace Sensor {
             static constexpr int64_t MAX_RESET_TIME_US { 800000ll };
 
             const addr_type m_address;
+            const UBaseType_t m_task_priority;
             bool m_present;
 
             uint16_t m_sw_rev;

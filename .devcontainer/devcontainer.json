@@ -20,8 +20,8 @@
 				"ms-vscode.cmake-tools",
 				"twxs.cmake",
 				"marus25.cortex-debug",
-				"chris-hock.pioasm",
-				"eamodio.gitlens"
+				"mcu-debug.rtos-views",
+				"chris-hock.pioasm"
 			]
 		}
 	},

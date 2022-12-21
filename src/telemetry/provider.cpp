@@ -70,11 +70,26 @@ Radio::Telemetry Provider::get_next_telemetry()
                 return Radio::Telemetry::rpm(encoder.id(), encoder.rpm());
             }
         case 4:
-            return Radio::Telemetry::diy(0, m_robot.imu().heading()*180.0f/static_cast<float>(M_PI));
+            {
+                m_robot.imu().lock();
+                auto heading = m_robot.imu().heading();
+                m_robot.imu().unlock();
+                return Radio::Telemetry::diy(0, heading*180.0f/static_cast<float>(M_PI));
+            }
         case 5:
-            return Radio::Telemetry::diy(1, m_robot.imu().pitch()*180.0f/static_cast<float>(M_PI));
+            {
+                m_robot.imu().lock();
+                auto pitch = m_robot.imu().pitch();
+                m_robot.imu().unlock();
+                return Radio::Telemetry::diy(1, pitch*180.0f/static_cast<float>(M_PI));
+            }
         case 6:
-            return Radio::Telemetry::diy(2, m_robot.imu().roll()*180.0f/static_cast<float>(M_PI));
+            {
+                m_robot.imu().lock();
+                auto roll = m_robot.imu().roll();
+                m_robot.imu().unlock();
+                return Radio::Telemetry::diy(2, roll*180.0f/static_cast<float>(M_PI));
+            }
         default:
             m_primary = 0;
             return get_secondary();

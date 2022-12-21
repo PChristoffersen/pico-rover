@@ -10,18 +10,16 @@
 
 #include <functional>
 #include <pico/stdlib.h>
-#include <pico/mutex.h>
-#include <util/locking.h>
-#include <util/callback.h>
+#include <FreeRTOS.h>
+#include <semphr.h>
 
-namespace Sensor {
+namespace INA219 {
 
-    class INA219 {
+    class Sensor {
         public:
-            using callback_type = Callback<float,float,float>; // voltage, current, power;
             using addr_type = uint8_t;
 
-            enum class Address: addr_type {
+            enum Address: addr_type {
                 INA0 = 0x40,
                 INA1 = 0x41,
                 INA2 = 0x42,
@@ -29,9 +27,9 @@ namespace Sensor {
             };
 
 
-            INA219(Address addr);
-            INA219(const INA219&) = delete; // No copy constructor
-            INA219(INA219&&) = delete; // No move constructor
+            Sensor(addr_type addr, UBaseType_t task_priority);
+            Sensor(const Sensor&) = delete; // No copy constructor
+            Sensor(Sensor&&) = delete; // No move constructor
 
             void init();
 
@@ -39,12 +37,22 @@ namespace Sensor {
 
             absolute_time_t update();
 
-            float get_shunt_voltage() const { SEMAPHORE_GUARD(m_sem); return m_shunt_v; }
-            float get_bus_voltage() const   { SEMAPHORE_GUARD(m_sem); return m_bus_v; }
-            float get_current() const       { SEMAPHORE_GUARD(m_sem); return m_current; }
-            float get_power() const         { SEMAPHORE_GUARD(m_sem); return m_power; }
+            void lock() const 
+            {
+                xSemaphoreTake(m_sem, portMAX_DELAY);
+            }
+            void unlock() const
+            {
+                xSemaphoreGive(m_sem);
+            }
+            float get_shunt_voltage() const { return m_shunt_v; }
+            float get_bus_voltage() const   { return m_bus_v; }
+            float get_current() const       { return m_current; }
+            float get_power() const         { return m_power; }
 
-            void add_callback(callback_type::call_type cb) { m_callback.add(cb); }
+        protected:
+
+            virtual void on_data(float bus_v, float current, float power) {}
 
         private:
             static constexpr uint    TASK_STACK_SIZE    { configMINIMAL_STACK_SIZE };
@@ -52,6 +60,7 @@ namespace Sensor {
             static constexpr float SHUNT_RESISTOR       { 0.1f }; // 0.1 Ohm shunt resistor
 
             const addr_type m_address;
+            const UBaseType_t m_task_priority;
             bool m_present;
 
             StaticSemaphore_t m_sem_buf;
@@ -66,8 +75,6 @@ namespace Sensor {
             float m_bus_v;
             float m_current;
             float m_power;
-
-            callback_type m_callback;
 
             bool write_reg(uint8_t reg, uint16_t value);
             bool read_reg(uint8_t reg, uint16_t &value);
