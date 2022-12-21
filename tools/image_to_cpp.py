@@ -54,13 +54,13 @@ def write_header(img_name: str, img_width: int, img_height: int, img_data: bytea
     with open(f'{header_path}', 'wt') as file:
         file.write(f"#pragma once\n")
         file.write(f"\n")
-        file.write(f"#include <oled/image.h>\n")
+        file.write(f"#include <ssd1306/image.h>\n")
         file.write(f"\n")
         file.write(f"namespace OLED::Resource::Image {{\n")
         file.write(f"\n")
         file.write(f"    static constexpr uint _{img_name}_width {{ {img_width} }};\n")
         file.write(f"    static constexpr uint _{img_name}_height {{ {img_height} }};\n")
-        file.write(f"    static constexpr ::OLED::Image::column_type _{img_name}_data[{img_width*(img_height//OLED_PAGE_HEIGHT)}] = {{\n")
+        file.write(f"    static constexpr ::SSD1306::Image::column_type _{img_name}_data[{img_width*(img_height//OLED_PAGE_HEIGHT)}] = {{\n")
         for row in range(int(img_height/OLED_PAGE_HEIGHT)):
             file.write(f"        ")
             data = img_data[row*img_width:row*img_width+img_width]
@@ -68,7 +68,7 @@ def write_header(img_name: str, img_width: int, img_height: int, img_data: bytea
             file.write(f",\n")
         file.write(f"    }};\n")
         file.write(f"\n")
-        file.write(f"    static constexpr ::OLED::Image {img_name} {{ _{img_name}_width, _{img_name}_height, _{img_name}_data }};\n")
+        file.write(f"    static constexpr ::SSD1306::Image {img_name} {{ _{img_name}_width, _{img_name}_height, _{img_name}_data }};\n")
         file.write(f"\n")
         file.write(f"}}\n")
         file.write(f"\n")

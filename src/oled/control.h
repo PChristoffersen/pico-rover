@@ -16,15 +16,19 @@
 #include <radio/radio.h>
 #include <rtos.h>
 
-#include "ssd1306_display.h"
+#include <ssd1306/display.h>
+#include <ssd1306/font.h>
+#include <ssd1306/image.h>
 
 class Robot;
 
 namespace OLED {
-
     class Control {
         public:
             using Display = SSD1306::Display;
+            using Font = SSD1306::Font;
+            using Image = SSD1306::Image;
+
 
             Control(Robot &robot);
             Control(const Control&) = delete; // No copy constructor

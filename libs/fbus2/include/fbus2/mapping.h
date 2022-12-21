@@ -13,7 +13,7 @@
 
 #include "channels.h"
 
-namespace Radio::FBus2 {
+namespace FBus2 {
 
     enum class Toggle : uint {
         P0 = 0,

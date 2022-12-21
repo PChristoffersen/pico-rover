@@ -20,7 +20,7 @@
 #include "font.h"
 
 
-namespace OLED {
+namespace SSD1306 {
 
     class FramebufferBase {
         public:

@@ -23,7 +23,7 @@
 #include "mapping.h"
 #include "ringbuffer.h"
 
-namespace Radio::FBus2 {
+namespace FBus2 {
 
     class Receiver {
         public:

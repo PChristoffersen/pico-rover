@@ -12,7 +12,7 @@
 #include <pico/stdlib.h>
 #include <pico/critical_section.h>
 
-namespace Radio::FBus2 {
+namespace FBus2 {
 
     template<typename T, size_t SIZE>
     class RingBuffer {

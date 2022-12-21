@@ -13,7 +13,7 @@
 #include <pico/stdlib.h>
 
 
-namespace Radio::FBus2 {
+namespace FBus2 {
 
     /**
      * @brief FrSky telemetry data IDs

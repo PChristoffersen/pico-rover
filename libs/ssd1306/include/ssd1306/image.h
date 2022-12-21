@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-namespace OLED {
+namespace SSD1306 {
 
     class Image {
         public:

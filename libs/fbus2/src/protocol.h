@@ -17,7 +17,7 @@
 #pragma once
 
 
-namespace Radio::FBus2 {
+namespace FBus2 {
 
     /**
      * @brief Control package

@@ -50,7 +50,6 @@ add_executable(${PROJECT_NAME}
     src/motor/encoder.cpp
     src/motor/servo.cpp
     src/oled/control.cpp
-    src/oled/ssd1306_display.cpp
     src/radio/radio.cpp
     src/sensor/pico_adc.cpp
     src/telemetry/provider.cpp
@@ -158,6 +157,7 @@ target_link_libraries(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     i2c_bus
     led_strip
+    ssd1306
     fbus2
     bno055
     ina219

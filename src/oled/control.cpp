@@ -20,10 +20,10 @@
 #include <liberationmono_24.font.h>
 #include <liberationsans_16.font.h>
 #include <liberationsans_24.font.h>
-#include <oled/fixed_5x8.font.h>
-#include <oled/fixed_8x8.font.h>
-#include <oled/fixed_12x16.font.h>
-#include <oled/fixed_16x32.font.h>
+#include <ssd1306/fixed_5x8.font.h>
+#include <ssd1306/fixed_8x8.font.h>
+#include <ssd1306/fixed_12x16.font.h>
+#include <ssd1306/fixed_16x32.font.h>
 
 namespace OLED {
 
@@ -132,7 +132,7 @@ void Control::update_armed(bool force)
     constexpr int AREA_WIDTH  { 24 };
     constexpr int AREA_HEIGHT {  8 };
 
-    constexpr auto &font { Resource::Font::Fixed_5x8 };
+    constexpr auto &font { ::SSD1306::Resource::Font::Fixed_5x8 };
 
     m_framebuffer.fill_rect(AREA_LEFT, AREA_TOP, AREA_WIDTH, AREA_HEIGHT, framebuffer_type::DrawOp::SUBTRACT);
     if (m_state_drawn.armed) {
@@ -176,7 +176,7 @@ void Control::update_battery(bool force)
         }
 
         // Percent
-        const OLED::Font &font = Resource::Font::LiberationSans_16;
+        const Font &font = Resource::Font::LiberationSans_16;
         char text[8];
         sprintf(text, "%u", level);
         m_framebuffer.draw_text(AREA_LEFT+(Resource::Image::Battery.width()-font.width(text))/2, AREA_TOP+Resource::Image::Battery.height(), text, font);
@@ -186,8 +186,8 @@ void Control::update_battery(bool force)
 
     {
         // Update voltage and amps
-        const OLED::Font &font = Resource::Font::Fixed_8x8;
-        const OLED::Font &font2 = Resource::Font::LiberationSans_16;
+        const Font &font = SSD1306::Resource::Font::Fixed_8x8;
+        const Font &font2 = Resource::Font::LiberationSans_16;
         constexpr int AREA_TOP  { 64-16*3 };
         constexpr int AREA_LEFT { 0 };
         constexpr uint AREA_WIDTH { 128-Resource::Image::Battery.width() };
@@ -247,7 +247,7 @@ void Control::update_radio(bool force)
     }
     else {
         // All is good
-        constexpr auto font { Resource::Font::Fixed_8x8 };
+        constexpr auto &font { SSD1306::Resource::Font::Fixed_8x8 };
         if (rssi>99) 
             rssi = 99;
         char text[4];

@@ -15,7 +15,7 @@
 #include <pico/stdlib.h>
 #include <hardware/uart.h>
 
-namespace Radio::FBus2 {
+namespace FBus2 {
 
 
 ReceiverUART::ReceiverUART(uart_inst_t *uart, uint baudrate, uint tx_pin, uint rx_pin, UBaseType_t task_priority, UBaseType_t lower_task_priority) :

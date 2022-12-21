@@ -13,7 +13,7 @@
 
 #include "framebuffer.h"
 
-namespace OLED::SSD1306 {
+namespace SSD1306 {
 
     class Display {
         public:

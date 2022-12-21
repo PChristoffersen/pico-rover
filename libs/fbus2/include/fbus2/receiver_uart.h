@@ -10,7 +10,7 @@
 
 #include "receiver.h"
 
-namespace Radio::FBus2 {
+namespace FBus2 {
 
     class ReceiverUART : public Receiver {
         private:

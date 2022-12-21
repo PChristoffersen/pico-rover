@@ -1,6 +1,6 @@
 #include <algorithm>
 
-namespace OLED {
+namespace SSD1306 {
 
 inline void FramebufferBase::_pixel_op(uint8_t &pix, uint8_t val, FramebufferBase::DrawOp op)
 {

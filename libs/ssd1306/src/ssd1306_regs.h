@@ -11,7 +11,7 @@
 #include <pico/stdlib.h>
 #include <hardware/i2c.h>
 
-namespace OLED::SSD1306 {
+namespace SSD1306 {
 
     /* Control */
     constexpr uint8_t SSD1306_CONTROL_COMMAND     = 0x80;

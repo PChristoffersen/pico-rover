@@ -13,7 +13,7 @@
 #include <stdio.h>
 
 
-namespace Radio::FBus2 {
+namespace FBus2 {
 
 
 TaranisX9DPlus::TaranisX9DPlus() :

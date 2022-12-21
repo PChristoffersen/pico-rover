@@ -1,4 +1,4 @@
-#include "ssd1306_display.h"
+#include <ssd1306/display.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,7 +9,7 @@
 #include "ssd1306_regs.h"
 
 
-namespace OLED::SSD1306 {
+namespace SSD1306 {
 
 
 Display::Display(addr_type addr) : 

@@ -111,12 +111,12 @@ def write_header(font_name: str, font: ImageFont, font_height: int, glyph_range,
     with open(f'{header_path}', 'wt') as file:
         file.write(f"#pragma once\n")
         file.write(f"\n")
-        file.write(f"#include <oled/font.h>\n")
+        file.write(f"#include <ssd1306/font.h>\n")
         file.write(f"\n")
         file.write(f"namespace OLED::Resource::Font {{\n")
         file.write(f"\n")
 
-        file.write(f"    static constexpr ::OLED::Font::column_type _{font_name}_data[] = {{\n")
+        file.write(f"    static constexpr ::SSD1306::Font::column_type _{font_name}_data[] = {{\n")
         for glyph in glyphs:
             if not glyph.data: 
                 continue
@@ -127,7 +127,7 @@ def write_header(font_name: str, font: ImageFont, font_height: int, glyph_range,
         file.write(f"    }};\n")
         file.write(f"\n")
 
-        file.write(f"    static constexpr ::OLED::Font::Glyph _{font_name}_glyphs[] = {{\n")
+        file.write(f"    static constexpr ::SSD1306::Font::Glyph _{font_name}_glyphs[] = {{\n")
         off = 0
         for glyph in glyphs:
             file.write(f"        {{ 0x{off:04x}, {glyph.advance}, {glyph.width}, {glyph.height//8}, {glyph.x_off}, {glyph.y_off//8} }}, // 0x{glyph.char:02x} ('{chr(glyph.char)}')\n")
@@ -137,7 +137,7 @@ def write_header(font_name: str, font: ImageFont, font_height: int, glyph_range,
 
         file.write(f"    }};\n")
         file.write(f"\n")
-        file.write(f"    static constexpr ::OLED::DynamicFont {font_name} {{\n")
+        file.write(f"    static constexpr ::SSD1306::DynamicFont {font_name} {{\n")
         file.write(f"        {font_size}, // Size\n")
         file.write(f"        {descent}, // Descent\n")
         file.write(f"        {ascent}, // Ascent\n")

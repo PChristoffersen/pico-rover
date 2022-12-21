@@ -1,10 +1,10 @@
 #pragma once
 
-#include <oled/font.h>
+#include "font.h"
 
-namespace OLED::Resource::Font {
+namespace SSD1306::Resource::Font {
 
-    static constexpr ::OLED::Font::column_type _Fixed_5x8_data[] = {
+    static constexpr ::SSD1306::Font::column_type _Fixed_5x8_data[] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 
         0x00, 0x00, 0x5c, 0x00, 0x00, 
         0x00, 0x0c, 0x00, 0x0c, 0x00, 
@@ -102,7 +102,7 @@ namespace OLED::Resource::Font {
         0x10, 0x08, 0x10, 0x08, 0x00, 
     };
 
-    static constexpr ::OLED::FixedFont Fixed_5x8 {
+    static constexpr ::SSD1306::FixedFont Fixed_5x8 {
         8,
         8,
         0,

@@ -23,7 +23,7 @@
 #endif
 
 
-namespace Radio::FBus2 {
+namespace FBus2 {
 
 
 Receiver *Receiver::m_instance = nullptr;
