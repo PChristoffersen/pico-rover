@@ -1,5 +1,6 @@
 #include "pico_adc.h"
 
+#include <string.h>
 #include <stdio.h>
 #include <pico/stdlib.h>
 #include <pico/mutex.h>
@@ -69,6 +70,14 @@ void PicoADC::init()
 
     m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<PicoADC*>(arg)->run(); }, "PicoADC", TASK_STACK_SIZE, this, ADC_TASK_PRIORITY, m_task_stack, &m_task_buf);
     assert(m_task);
+    vTaskSuspend(m_task);
+}
+
+
+
+void PicoADC::start()
+{
+    vTaskResume(m_task);
 }
 
 

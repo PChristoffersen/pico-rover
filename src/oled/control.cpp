@@ -57,9 +57,6 @@ inline void Control::run()
     TickType_t last_battery = last_time;
     TickType_t last_armed = last_time;
 
-    m_framebuffer.draw_bitmap((m_framebuffer.width()-Resource::Image::Raspberry_Logo.width())/2, (m_framebuffer.height()-Resource::Image::Raspberry_Logo.height())/2, Resource::Image::Raspberry_Logo);
-    m_display.update_sync();
-
     xTaskDelayUntil(&last_time, pdMS_TO_TICKS(START_DELAY_MS));
 
     m_framebuffer.clear();
@@ -98,10 +95,21 @@ void Control::init()
     m_battery_show = true;
 
     m_display.init();
+    m_framebuffer.draw_bitmap((m_framebuffer.width()-Resource::Image::Raspberry_Logo.width())/2, (m_framebuffer.height()-Resource::Image::Raspberry_Logo.height())/2, Resource::Image::Raspberry_Logo);
+    m_display.update_sync();
 
     if (m_display.present()) {
         m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<Control*>(arg)->run(); }, "Display", TASK_STACK_SIZE, this, DISPLAY_TASK_PRIORITY, m_task_stack, &m_task_buf);
         assert(m_task);
+        vTaskSuspend(m_task);
+    }
+}
+
+
+void Control::start() 
+{
+    if (m_task) {
+        vTaskResume(m_task);
     }
 }
 

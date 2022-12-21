@@ -30,6 +30,8 @@ void Encoder::global_init()
     m_last_update = get_absolute_time();
 
     m_task = xTaskCreateStatic([](auto args){ Encoder::global_run(); }, "Encoder", TASK_STACK_SIZE, nullptr, ENCODER_TASK_PRIORITY, m_task_stack, &m_task_buf);
+    assert(m_task);
+    //vTaskSuspend(m_task);
 
     initialized = true;
 }

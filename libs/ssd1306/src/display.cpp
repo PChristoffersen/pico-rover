@@ -89,15 +89,25 @@ void Display::init()
 {
     i2c_bus_acquire_blocking();
 
-    uint8_t data = 0x00;
-    int res = i2c_read_blocking(i2c_default, m_address, &data, sizeof(data), false);
-    if (res < static_cast<int>(sizeof(data))) {
-        printf("No Display!!!: %d\n", res);
+    for (uint i=0; i<10; i++) {
+        uint8_t data = 0x00;
+        int res = i2c_read_blocking(i2c_default, m_address, &data, sizeof(data), false);
+        if (res < static_cast<int>(sizeof(data))) {
+            printf("No Display!!!: %d\n", res);
+            m_present = false;
+            sleep_ms(100);
+        }
+        else {
+            m_present = true;
+            break;
+        }
+    }
+    if (!m_present) {
+        printf("No Display!!!\n");
         m_present = false;
         i2c_bus_release();
         return;
     }
-    m_present = true;
 
 
     uint8_t com;

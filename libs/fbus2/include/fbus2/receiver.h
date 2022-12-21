@@ -36,6 +36,7 @@ namespace FBus2 {
             Receiver(Receiver&&) = delete; // No move constructor
 
             void init();
+            void start();
 
             void lock() const { xSemaphoreTake(m_mutex, portMAX_DELAY); }
             void unlock() const { xSemaphoreGive(m_mutex); }

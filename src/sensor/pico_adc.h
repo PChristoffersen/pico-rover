@@ -26,6 +26,7 @@ namespace Sensor {
             PicoADC(PicoADC&&) = delete; // No move constructor
 
             void init();
+            void start();
 
             float get_battery() const { SEMAPHORE_GUARD(m_sem); return m_battery_voltage; }
             float get_vsys() const    { SEMAPHORE_GUARD(m_sem); return m_vsys_voltage; }

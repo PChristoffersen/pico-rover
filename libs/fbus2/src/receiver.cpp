@@ -72,9 +72,18 @@ void Receiver::init()
     vTaskCoreAffinitySet(m_task, 1<<ISR_CORE);
     #endif
     assert(m_task);
+    vTaskSuspend(m_task);
 
     m_task_lower = xTaskCreateStatic([](auto args){ reinterpret_cast<Receiver*>(args)->run_lower(); }, "RCLower", TASK_LOWER_STACK_SIZE, this, m_lower_task_priority, m_task_lower_stack, &m_task_lower_buf);
     assert(m_task_lower);
+    vTaskSuspend(m_task_lower);
+}
+
+
+void Receiver::start()
+{
+    vTaskResume(m_task);
+    vTaskResume(m_task_lower);
 }
 
 

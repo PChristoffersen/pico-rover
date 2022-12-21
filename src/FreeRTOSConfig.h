@@ -96,6 +96,7 @@ uint32_t do_get_time();
 #define portGET_RUN_TIME_COUNTER_VALUE()        do_get_time()
 #define configUSE_TRACE_FACILITY                1
 #define configUSE_STATS_FORMATTING_FUNCTIONS    1
+#define configRECORD_STACK_HIGH_ADDRES          1
 #endif
 
 /* Co-routine related definitions. */

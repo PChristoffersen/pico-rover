@@ -207,8 +207,14 @@ void Sensor::init()
 
     m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<Sensor*>(arg)->run(); }, "IMU", TASK_STACK_SIZE, this, m_task_priority, m_task_stack, &m_task_buf);
     assert(m_task);
+    vTaskSuspend(m_task);
 }
 
+
+void Sensor::start()
+{
+    vTaskResume(m_task);
+}
 
 
 

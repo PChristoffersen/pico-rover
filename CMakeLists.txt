@@ -29,6 +29,13 @@ set(PICO_BOARD pico)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+add_compile_definitions(PICO_UART_ENABLE_CRLF_SUPPORT=0)
+add_compile_definitions(PICO_DEFAULT_I2C_SDA_PIN=21)
+add_compile_definitions(PICO_DEFAULT_I2C_SCL_PIN=20)
+add_compile_definitions(PICO_DEFAULT_UART_TX_PIN=16)
+add_compile_definitions(PICO_DEFAULT_UART_RX_PIN=17)
+
+
 add_subdirectory(libs)
 
 if(NOT PICO_PLATFORM STREQUAL "host")
@@ -81,14 +88,6 @@ endif()
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/src)
 #target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
-
-add_compile_definitions(PICO_UART_ENABLE_CRLF_SUPPORT=0)
-target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_ENABLE_CRLF_SUPPORT=0)
-target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_DEFAULT_CRLF=0)
-target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_UART_TX_PIN=16)
-target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_UART_RX_PIN=17)
-target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SDA_PIN=21)
-target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_DEFAULT_I2C_SCL_PIN=20)
 
 set_source_files_properties(
                 ${FREERTOS_KERNEL_PATH}/tasks.c
@@ -176,6 +175,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/libs/mi
 target_link_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/libs/micro_ros_raspberrypi_pico_sdk/libmicroros)
 target_link_libraries(${PROJECT_NAME} microros)
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_ENABLE_CRLF_SUPPORT=0)
+target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_STDIO_DEFAULT_CRLF=0)
 
 
 

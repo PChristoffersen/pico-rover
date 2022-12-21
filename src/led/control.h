@@ -50,6 +50,7 @@ namespace LED {
             Control(Control&&) = delete; // No move constructor
 
             void init();
+            void start();
 
             void update_connected(bool connected);
 

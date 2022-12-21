@@ -35,6 +35,7 @@ namespace OLED {
             Control(Control&&) = delete; // No move constructor
 
             void init();
+            void start();
 
             void off();
 

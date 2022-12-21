@@ -76,12 +76,13 @@ static void drive_wheels(float stick_x, float stick_y, float rotate) {
 #endif
 
 
-
 static void main_task(__unused void *params)
 {
     constexpr uint INTERVAL { 1000 };
     constexpr uint n_states = 4;
     uint state = 0;
+
+    robot.start();
 
     TickType_t last_time = xTaskGetTickCount();
     while (true) {
@@ -119,7 +120,6 @@ static void main_task(__unused void *params)
         xTaskDelayUntil(&last_time, pdMS_TO_TICKS(INTERVAL));
     }
 }
-
 
 
 
@@ -234,13 +234,13 @@ static void init()
         else {
             switch (mapping.sg()) {
                 case Radio::Toggle::P0:
-                    leds.set_indicator_mode(LED::Control::IndicatorMode::RIGHT);
+                    leds.set_indicator_mode(LED::Control::IndicatorMode::LEFT);
                     break;
                 case Radio::Toggle::P1:
                     leds.set_indicator_mode(LED::Control::IndicatorMode::NONE);
                     break;
                 case Radio::Toggle::P2:
-                    leds.set_indicator_mode(LED::Control::IndicatorMode::LEFT);
+                    leds.set_indicator_mode(LED::Control::IndicatorMode::RIGHT);
                     break;
             }
         }
@@ -280,11 +280,11 @@ static void init()
 
 static void vLaunch() 
 {
+    printf("%s:%d\n", __PRETTY_FUNCTION__, __LINE__);
     xTaskCreate(main_task, "Main", configMINIMAL_STACK_SIZE, nullptr, TEST_TASK_PRIORITY, nullptr);
+    printf("%s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 
-    // Setup complete - start blinking onboard led
-    robot.leds().builtin().blink();
-
+    printf("%s:%d\n", __PRETTY_FUNCTION__, __LINE__);
     /* Start the tasks and timer running. */
     printf("Starting scheduler\n");
     vTaskStartScheduler();

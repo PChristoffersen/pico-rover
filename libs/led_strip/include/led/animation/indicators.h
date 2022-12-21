@@ -11,9 +11,9 @@ namespace LED::Animation {
             using layer_type = typename Periodic<NLEDS>::layer_type;
             using Periodic<NLEDS>::m_layer;
 
-            static constexpr interval_type INTERVAL { pdMS_TO_TICKS(150) };
-            static constexpr size_t OFF_INTERVALS { 3 };
-            static constexpr size_t ON_INTERVALS { 2 };
+            static constexpr interval_type INTERVAL { pdMS_TO_TICKS(60) };
+            static constexpr size_t OFF_INTERVALS { 6 };
+            static constexpr size_t ON_INTERVALS { 6 };
             static constexpr size_t LED_COUNT { 4 };
             static constexpr size_t TOTAL_INTERVALS { OFF_INTERVALS + LED_COUNT + ON_INTERVALS };
             static constexpr Color::RGBA COLOR { 0xFF, 0x80, 0x00, 0xFF };

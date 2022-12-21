@@ -39,7 +39,7 @@ namespace LED::Animation {
                     m_layer[i] = COLOR_FRONT;
                     m_layer[lsz/2-i-1] = COLOR_FRONT;
                     m_layer[lsz/2+i] = COLOR_REAR;
-                    m_layer[lsz-i-1] = COLOR_FRONT;
+                    m_layer[lsz-i-1] = COLOR_REAR;
                 }
                 m_layer.dirty();
             }

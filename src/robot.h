@@ -25,6 +25,7 @@ class Robot {
         Robot(Robot&&) = delete; // No move constructor
 
         void init();
+        void start();
 
         bool is_armed() const { return m_armed; }        
         void set_armed(bool armed);

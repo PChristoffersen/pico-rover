@@ -81,6 +81,22 @@ void Robot::init()
 }
 
 
+void Robot::start()
+{
+    // Setup complete - start blinking onboard led
+    m_leds.start();
+    m_oled.start();
+
+    // Start sensors
+    m_sys_sensor.start();
+    m_battery_sensor.start();
+
+    // Start subsystems
+    m_imu.start();
+    m_receiver.start();
+
+
+}
 
 
 void Robot::set_armed(bool armed) 

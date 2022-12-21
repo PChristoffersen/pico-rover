@@ -19,7 +19,13 @@ namespace LED::Color {
             void clear_dirty() { set_dirty(false); }
 
             bool is_visible() const { return m_visible; }
-            void set_visible(bool visible) { m_visible = visible; }
+            void set_visible(bool visible) 
+            { 
+                if (m_visible != visible) {
+                    m_visible = visible; 
+                    dirty();
+                }
+            }
 
         private:
             bool m_dirty;

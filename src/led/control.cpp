@@ -130,9 +130,9 @@ inline void Control::run()
         update_animation(last_update);
 
         // Check if we need to update
-        dirty  = m_animations_layer.is_dirty() && m_animations_layer.is_visible();
-        dirty |= m_light_layer.is_dirty() && m_light_layer.is_visible();
-        dirty |= m_indicator_layer.is_dirty() && m_indicator_layer.is_visible();
+        dirty  = m_animations_layer.is_dirty();
+        dirty |= m_light_layer.is_dirty();
+        dirty |= m_indicator_layer.is_dirty();
 
         if (!dirty) {
             continue;
@@ -160,7 +160,14 @@ void Control::init()
 
     m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<Control*>(arg)->run(); }, "LEDStrip", TASK_STACK_SIZE, this, LED_TASK_PRIORITY, m_task_stack, &m_task_buf);
     assert(m_task);
+    vTaskSuspend(m_task);
+}
 
+
+void Control::start() 
+{
+    m_builtin.blink();
+    vTaskResume(m_task);
 }
 
 

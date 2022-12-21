@@ -8,7 +8,7 @@ target_include_directories(i2c_bus PUBLIC
 )
 
 
-target_link_libraries(i2c_bus
+target_link_libraries(i2c_bus PRIVATE
     FreeRTOS-Kernel
     pico_stdlib
     hardware_i2c

@@ -129,13 +129,17 @@ void Sensor::init()
 
     write_reg(INA219_REG_CONFIG, config);
 
+    i2c_bus_release();
+
     m_task = xTaskCreateStatic([](auto arg){ reinterpret_cast<Sensor*>(arg)->run(); }, "INA219", TASK_STACK_SIZE, this, m_task_priority, m_task_stack, &m_task_buf);
     assert(m_task);
-
-
-    i2c_bus_release();
+    vTaskSuspend(m_task);
 }
 
 
+void Sensor::start()
+{
+    vTaskResume(m_task);
+}
 
 }

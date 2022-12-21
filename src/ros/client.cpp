@@ -55,6 +55,8 @@ void Client::init()
 
     m_task = xTaskCreateStatic([](auto args){ reinterpret_cast<Client*>(args)->run(); }, "ROS", TASK_STACK_SIZE, this, ROS_TASK_PRIORITY, m_task_stack, &m_task_buf);
     assert(m_task);
+    vTaskSuspend(m_task);
+    vTaskResume(m_task);
 }
 
 

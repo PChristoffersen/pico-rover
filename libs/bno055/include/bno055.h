@@ -30,6 +30,7 @@ namespace BNO055 {
             Sensor(Sensor&&) = delete; // No move constructor
 
             void init();
+            void start();
 
             bool present() const { return m_present; }
 
