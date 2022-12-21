@@ -8,6 +8,8 @@
  */
 #pragma once
 
+#if !PICO_NO_HARDWARE
+
 #include <stdio.h>
 #include <pico/stdlib.h>
 
@@ -51,3 +53,5 @@ namespace SSD1306 {
     };
 
 }
+
+#endif

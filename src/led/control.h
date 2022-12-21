@@ -8,12 +8,13 @@
 #include <led/strip.h>
 #include <led/colorbuffer.h>
 #include <led/colorlayer.h>
+#include <led/animation.h>
+#include <led/animation/indicators.h>
+#include <led/animation/headlights.h>
 
 #include <boardconfig.h>
 #include "gpio_led.h"
 #include "cyw43_led.h"
-#include "animation.h"
-#include "animation/indicators.h"
 
 class Robot;
 
@@ -37,6 +38,11 @@ namespace LED {
                 _LAST
             };
 
+            enum class LightMode : uint {
+                OFF,
+                ON,
+            };
+
             using IndicatorMode = Animation::Indicators<LED_STRIP_PIXEL_COUNT>::Mode;
 
             Control(Robot &robot);
@@ -48,6 +54,7 @@ namespace LED {
             void update_connected(bool connected);
 
             void set_animation_mode(AnimationMode mode);
+            void set_light_mode(LightMode mode);
             void set_indicator_mode(IndicatorMode mode);
 
 
@@ -62,6 +69,8 @@ namespace LED {
             using color_buffer_type = Color::Buffer<Color::RGBW, LED_STRIP_PIXEL_COUNT>;
             using animation_type = std::unique_ptr<Animation::Base>;
             using animation_layer_type = Color::Layer<Color::RGBA, LED_STRIP_PIXEL_COUNT>;
+            using light_layer_type = Color::Layer<Color::RGBA, LED_STRIP_PIXEL_COUNT>;
+            using light_type = Animation::Headlights<LED_STRIP_PIXEL_COUNT>;
             using indicator_type = Animation::Indicators<LED_STRIP_PIXEL_COUNT>;
             using indicator_layer_type = Color::Layer<Color::RGBA, LED_STRIP_PIXEL_COUNT>;
 
@@ -83,6 +92,11 @@ namespace LED {
             AnimationMode m_animation_mode;
             AnimationMode m_animation_mode_set;
 
+            light_type m_light;
+            light_layer_type m_light_layer;
+            LightMode m_light_mode;
+            LightMode m_light_mode_set;
+
             indicator_type m_indicator;
             indicator_layer_type m_indicator_layer;
             IndicatorMode m_indicator_mode_set;
@@ -92,6 +106,7 @@ namespace LED {
             inline void update_modes(TickType_t now);
             inline void update_animation(TickType_t now);
             inline void draw_buffer();
+
     };
 
 }

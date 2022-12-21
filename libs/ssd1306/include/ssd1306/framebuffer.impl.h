@@ -1,3 +1,4 @@
+#include <iomanip>
 #include <algorithm>
 
 namespace SSD1306 {

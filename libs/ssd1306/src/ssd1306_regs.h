@@ -9,7 +9,6 @@
 #pragma once
 
 #include <pico/stdlib.h>
-#include <hardware/i2c.h>
 
 namespace SSD1306 {
 

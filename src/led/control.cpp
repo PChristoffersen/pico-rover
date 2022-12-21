@@ -3,11 +3,11 @@
 #include <limits>
 
 #include <led/colorlayer.h>
-#include "animation/knightrider.h"
-#include "animation/colorcycle.h"
-#include "animation/blink.h"
-#include "animation/solid.h"
-#include "animation/chase.h"
+#include <led/animation/knightrider.h>
+#include <led/animation/colorcycle.h>
+#include <led/animation/blink.h>
+#include <led/animation/solid.h>
+#include <led/animation/chase.h>
 
 namespace LED {
 
@@ -22,7 +22,10 @@ Control::Control(Robot &robot):
     m_strip { LED_STRIP_PIO, LED_STRIP_PIN, LED_STRIP_IS_RGBW },
     m_robot { robot },
     m_animation_mode  { AnimationMode::_LAST },
-    m_animation_mode_set { AnimationMode::KNIGHT_RIDER },
+    m_animation_mode_set { AnimationMode::BLACK },
+    m_light { m_light_layer },
+    m_light_mode { LightMode::OFF },
+    m_light_mode_set { LightMode::OFF },
     m_indicator { m_indicator_layer },
     m_indicator_mode_set { IndicatorMode::NONE }
 {
@@ -65,6 +68,21 @@ inline void Control::update_modes(TickType_t now)
             m_animation->start(now);
         }
     }
+    if (m_light_mode != m_light_mode_set) {
+        m_light_mode = m_light_mode_set;
+        switch (m_light_mode) {
+            case LightMode::OFF:
+                m_light_layer.set_visible(false);
+                m_light.stop();
+                break;
+            case LightMode::ON:
+                m_light.start(now);
+                m_light_layer.set_visible(true);
+                break;
+        }
+    }
+
+
     m_indicator.set_mode(m_indicator_mode_set);
     m_indicator_mode_set = m_indicator.get_mode();
     xSemaphoreGive(m_mutex);
@@ -74,6 +92,7 @@ inline void Control::update_modes(TickType_t now)
 inline void Control::update_animation(TickType_t now)
 {
     m_animation->update(now);
+    m_light.update(now);
     m_indicator.update(now);
 }
 
@@ -85,6 +104,10 @@ inline void Control::draw_buffer()
     if (m_animations_layer.is_visible()) {
         m_buffer << m_animations_layer;
         m_animations_layer.clear_dirty();
+    }
+    if (m_light_layer.is_visible()) {
+        m_buffer << m_light_layer;
+        m_light_layer.clear_dirty();
     }
     if (m_indicator_layer.is_visible()) {
         m_buffer << m_indicator_layer;
@@ -108,6 +131,7 @@ inline void Control::run()
 
         // Check if we need to update
         dirty  = m_animations_layer.is_dirty() && m_animations_layer.is_visible();
+        dirty |= m_light_layer.is_dirty() && m_light_layer.is_visible();
         dirty |= m_indicator_layer.is_dirty() && m_indicator_layer.is_visible();
 
         if (!dirty) {
@@ -160,6 +184,14 @@ void Control::set_animation_mode(AnimationMode mode)
 {
     xSemaphoreTake(m_mutex, portMAX_DELAY);
     m_animation_mode_set = mode;
+    xSemaphoreGive(m_mutex);
+}
+
+
+void Control::set_light_mode(LightMode mode) 
+{
+    xSemaphoreTake(m_mutex, portMAX_DELAY);
+    m_light_mode_set = mode;
     xSemaphoreGive(m_mutex);
 }
 

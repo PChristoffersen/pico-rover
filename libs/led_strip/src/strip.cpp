@@ -1,5 +1,7 @@
 #include <led/strip.h>
 
+#if !PICO_NO_HARDWARE
+
 #include <stdio.h>
 #include <string.h>
 #include <pico/stdlib.h>
@@ -146,6 +148,6 @@ void StripBase::base_init(volatile void *dma_addr, size_t dma_count)
 
 }
 
-
-
 }
+
+#endif

@@ -15,8 +15,12 @@ pico_generate_pio_header(led_strip ${CMAKE_CURRENT_SOURCE_DIR}/src/ws2812.pio OU
 target_link_libraries(led_strip
     FreeRTOS-Kernel
     pico_stdlib
+)
+
+if(NOT PICO_PLATFORM STREQUAL "host")
+target_link_libraries(led_strip
     hardware_pio
     hardware_irq
     hardware_dma 
 )
-
+endif()

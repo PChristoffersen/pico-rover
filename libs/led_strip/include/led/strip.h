@@ -8,10 +8,11 @@
  */
 #pragma once
 
+#if !PICO_NO_HARDWARE
+
 #include <array>
 #include <stdio.h>
 #include <pico/stdlib.h>
-#include <pico/sem.h>
 #include <hardware/pio.h>
 #include <hardware/dma.h>
 #include <FreeRTOS.h>
@@ -167,3 +168,5 @@ namespace LED {
     };
 
 }
+
+#endif

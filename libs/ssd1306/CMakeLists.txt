@@ -8,9 +8,14 @@ target_include_directories(ssd1306 PUBLIC
 )
 
 
-target_link_libraries(ssd1306
+target_link_libraries(ssd1306 PRIVATE
     FreeRTOS-Kernel
     pico_stdlib
+)
+
+if(NOT PICO_PLATFORM STREQUAL "host")
+target_link_libraries(ssd1306 PRIVATE
     hardware_i2c
     i2c_bus    
 )
+endif()

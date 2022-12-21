@@ -207,27 +207,42 @@ static void init()
             drive_wheels(mapping.right_x().asFloat(), mapping.right_y().asFloat(), mapping.left_x().asFloat());
         }
 
+        auto &leds = robot.leds();
         switch (mapping.sc()) {
             case Radio::Toggle::P0:
-                robot.leds().set_animation_mode(LED::Control::AnimationMode::BLACK);
+                leds.set_animation_mode(LED::Control::AnimationMode::BLACK);
                 break;
             case Radio::Toggle::P1:
-                robot.leds().set_animation_mode(LED::Control::AnimationMode::KNIGHT_RIDER);
+                leds.set_animation_mode(LED::Control::AnimationMode::KNIGHT_RIDER);
                 break;
             case Radio::Toggle::P2:
-                robot.leds().set_animation_mode(LED::Control::AnimationMode::COLOR_CYCLE);
+                leds.set_animation_mode(LED::Control::AnimationMode::COLOR_CYCLE);
                 break;
         }
         switch (mapping.sd()) {
             case Radio::Toggle::P0:
-                robot.leds().set_indicator_mode(LED::Control::IndicatorMode::NONE);
+            case Radio::Toggle::P2:
+                leds.set_light_mode(LED::Control::LightMode::OFF);
                 break;
             case Radio::Toggle::P1:
-                robot.leds().set_indicator_mode(LED::Control::IndicatorMode::HAZARD);
+                leds.set_light_mode(LED::Control::LightMode::ON);
                 break;
-            case Radio::Toggle::P2:
-                robot.leds().set_indicator_mode(LED::Control::IndicatorMode::LEFT);
-                break;
+        }
+        if (mapping.sd()==Radio::Toggle::P2) {
+            leds.set_indicator_mode(LED::Control::IndicatorMode::HAZARD);
+        }
+        else {
+            switch (mapping.sg()) {
+                case Radio::Toggle::P0:
+                    leds.set_indicator_mode(LED::Control::IndicatorMode::RIGHT);
+                    break;
+                case Radio::Toggle::P1:
+                    leds.set_indicator_mode(LED::Control::IndicatorMode::NONE);
+                    break;
+                case Radio::Toggle::P2:
+                    leds.set_indicator_mode(LED::Control::IndicatorMode::LEFT);
+                    break;
+            }
         }
     });
     #endif

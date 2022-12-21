@@ -29,11 +29,9 @@ set(PICO_BOARD pico)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-
-if(NOT PICO_PLATFORM STREQUAL "host")
-
 add_subdirectory(libs)
 
+if(NOT PICO_PLATFORM STREQUAL "host")
 
 add_executable(${PROJECT_NAME} 
     src/main.cpp

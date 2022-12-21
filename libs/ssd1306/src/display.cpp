@@ -1,9 +1,12 @@
 #include <ssd1306/display.h>
 
+#if !PICO_NO_HARDWARE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pico/stdlib.h>
+#include <hardware/i2c.h>
 
 #include <i2c_bus.h>
 #include "ssd1306_regs.h"
@@ -204,3 +207,5 @@ void Display::update_sync()
 
 
 }
+
+#endif
