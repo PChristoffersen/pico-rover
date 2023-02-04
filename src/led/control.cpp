@@ -12,7 +12,6 @@
 namespace LED {
 
 Control::Control(Robot &robot):
-    m_mutex { nullptr },
     m_task { nullptr },
     #ifdef RASPBERRYPI_PICO_W
     m_builtin { CYW43_WL_GPIO_LED_PIN },
@@ -27,24 +26,25 @@ Control::Control(Robot &robot):
     m_light_mode { LightMode::OFF },
     m_light_mode_set { LightMode::OFF },
     m_indicator { m_indicator_layer },
-    m_indicator_mode_set { IndicatorMode::NONE }
+    m_indicator_mode_set { IndicatorMode::NONE },
+    m_brightness_set { m_strip.get_brightness() }
 {
-    m_mutex = xSemaphoreCreateMutexStatic(&m_mutex_buf);
-    configASSERT(m_mutex);
-    xSemaphoreGive(m_mutex);
 }
 
 
 
-inline void Control::update_modes(TickType_t now)
+inline bool Control::update_state(TickType_t now)
 {
-    xSemaphoreTake(m_mutex, portMAX_DELAY);
+    bool dirty = false;
+
+    lock();
     if (m_animation_mode != m_animation_mode_set) {
         if (m_animation) {
             m_animation->stop();
+            dirty = true;
         }
 
-        printf("SetMode: %u -> %u\n", static_cast<uint>(m_animation_mode_set), static_cast<uint>(m_animation_mode));
+        printf("SetMode: %u -> %u\n", static_cast<uint>(m_animation_mode), static_cast<uint>(m_animation_mode_set));
         m_animation_mode = m_animation_mode_set;
 
         switch (m_animation_mode) {
@@ -82,10 +82,17 @@ inline void Control::update_modes(TickType_t now)
         }
     }
 
+    if (std::abs(m_brightness_set-m_strip.get_brightness()) > 0.05f) {
+        m_strip.set_brightness(m_brightness_set);
+        dirty = true;
+    }
 
     m_indicator.set_mode(m_indicator_mode_set);
     m_indicator_mode_set = m_indicator.get_mode();
-    xSemaphoreGive(m_mutex);
+
+    unlock();
+
+    return dirty;
 }
 
 
@@ -126,11 +133,11 @@ inline void Control::run()
     while (true) {
         xTaskDelayUntil(&last_update, pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
 
-        update_modes(last_update);
+        dirty = update_state(last_update);
         update_animation(last_update);
 
         // Check if we need to update
-        dirty  = m_animations_layer.is_dirty();
+        dirty |= m_animations_layer.is_dirty();
         dirty |= m_light_layer.is_dirty();
         dirty |= m_indicator_layer.is_dirty();
 
@@ -189,25 +196,33 @@ void Control::update_connected(bool connected)
 
 void Control::set_animation_mode(AnimationMode mode) 
 {
-    xSemaphoreTake(m_mutex, portMAX_DELAY);
+    lock();
     m_animation_mode_set = mode;
-    xSemaphoreGive(m_mutex);
+    unlock();
 }
 
 
 void Control::set_light_mode(LightMode mode) 
 {
-    xSemaphoreTake(m_mutex, portMAX_DELAY);
+    lock();
     m_light_mode_set = mode;
-    xSemaphoreGive(m_mutex);
+    unlock();
 }
 
 
 void Control::set_indicator_mode(IndicatorMode mode)
 {
-    xSemaphoreTake(m_mutex, portMAX_DELAY);
+    lock();
     m_indicator_mode_set = mode;
-    xSemaphoreGive(m_mutex);
+    unlock();
+}
+
+
+void Control::set_brightness(strip_type::brightness_type brightness)
+{
+    lock();
+    m_brightness_set = brightness;
+    unlock();
 }
 
 

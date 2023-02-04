@@ -15,6 +15,7 @@
 #include <sensor/pico_adc.h>
 #include <radio/radio.h>
 #include <rtos.h>
+#include <util/lockable.h>
 
 #include <ssd1306/display.h>
 #include <ssd1306/font.h>
@@ -23,7 +24,7 @@
 class Robot;
 
 namespace OLED {
-    class Control {
+    class Control : public Lockable {
         public:
             using Display = SSD1306::Display;
             using Font = SSD1306::Font;
@@ -44,7 +45,7 @@ namespace OLED {
         private:
             using framebuffer_type = Display::framebuffer_type;
             static constexpr uint TASK_STACK_SIZE    { configMINIMAL_STACK_SIZE };
-            static constexpr uint UPDATE_INTERVAL_MS { 100u };
+            static constexpr uint UPDATE_INTERVAL_MS { 250u };
 
             static constexpr uint START_DELAY_MS { 5000u };
             static constexpr uint BATTERY_INTERVAL_MS { 200u };
@@ -61,9 +62,6 @@ namespace OLED {
             framebuffer_type &m_framebuffer;
 
             Robot &m_robot;
-
-            StaticSemaphore_t m_sem_buf;
-            SemaphoreHandle_t m_sem;
 
             StaticTask_t m_task_buf;
             StackType_t  m_task_stack[TASK_STACK_SIZE];

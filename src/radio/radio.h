@@ -5,7 +5,6 @@
 #include <fbus2/channels.h>
 #include <fbus2/telemetry.h>
 #include <util/callback.h>
-#include <util/locking.h>
 #include <boardconfig.h>
 #include <rtos.h>
 #include "telemetry.h"
@@ -15,7 +14,7 @@ namespace Radio {
     class Receiver : public FBus2::ReceiverUART {
         public:
             using mapping_type = FBus2::TaranisX9DPlus;        
-            using control_cb_type = Callback<const channels_type &, const mapping_type &>;
+            using control_cb_type = Callback<const Receiver&, const channels_type &, const mapping_type &>;
 
             Receiver() : 
                 FBus2::ReceiverUART { 

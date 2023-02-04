@@ -9,11 +9,11 @@
 #pragma once
 
 #include "receiver.h"
-#include <hardware/uart.h>
+#include <hardware/pio.h>
 
 namespace FBus2 {
 
-    class ReceiverUART : public Receiver {
+    class ReceiverPIO : public Receiver {
         private:
 
 
@@ -21,15 +21,17 @@ namespace FBus2 {
             static constexpr size_t MAX_CHANNELS { 24 };
             using channels_type = Channels;
 
-            ReceiverUART(uart_inst_t *uart, uint baudrate, uint tx_pin, uint rx_pin, UBaseType_t task_priority, UBaseType_t lower_task_priority);
-            ReceiverUART(const ReceiverUART&) = delete; // No copy constructor
-            ReceiverUART(ReceiverUART&&) = delete; // No move constructor
+            ReceiverPIO(PIO pio, uint baudrate, uint pin, UBaseType_t task_priority, UBaseType_t lower_task_priority);
+            ReceiverPIO(const ReceiverPIO&) = delete; // No copy constructor
+            ReceiverPIO(ReceiverPIO&&) = delete; // No move constructor
 
         private:
             // Config
-            const uint m_tx_pin;
-            const uint m_rx_pin;
-            uart_inst_t *m_uart;
+            const uint m_pin;
+            PIO m_pio;
+
+            uint m_rx_sm;
+            uint m_tx_sm;
 
             virtual void hardware_init() override;
             virtual void task_init() override;

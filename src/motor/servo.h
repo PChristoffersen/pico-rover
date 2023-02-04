@@ -14,15 +14,19 @@
 #include <rtos.h>
 
 #include <boardconfig.h>
+#include <util/lockable.h>
 
 namespace Motor {
-    class Servo {
+    class Servo : public Lockable {
         public:
             using array_type = std::array<Servo,SERVO_COUNT>;
             using id_type = uint;
             using value_t = uint16_t;
 
-            static constexpr value_t INITIAL_POSITION = 1500u;
+            static constexpr value_t INITIAL_POSITION { 1500u };
+            static constexpr value_t PULSE_MIN { 500u };
+            static constexpr value_t PULSE_MAX { 2500u };
+
 
             Servo(id_type id, uint pin, value_t initial = INITIAL_POSITION);
             Servo(const Servo&) = delete; // No copy constructor
@@ -50,9 +54,6 @@ namespace Motor {
 
             uint m_slice;
             uint m_channel;
-
-            StaticSemaphore_t m_mutex_buf;
-            SemaphoreHandle_t m_mutex;
 
             bool m_enabled;
             value_t m_value;

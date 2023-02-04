@@ -25,6 +25,8 @@ namespace LED {
 
     class StripBase {
         public: 
+            using brightness_type = Color::ColorBase::brightness_type;
+
             virtual void show() = 0;
 
             virtual void fill(Color::RGB color) = 0;
@@ -32,6 +34,9 @@ namespace LED {
 
             virtual Color::RGB &operator[](size_t n) = 0;
             virtual const Color::RGB &operator[](size_t n) const = 0;
+
+            void set_brightness(brightness_type brightness) { m_brightness = brightness; }
+            brightness_type get_brightness() const { return m_brightness; }
 
         protected:
             using pixel_type = uint32_t;
@@ -44,7 +49,7 @@ namespace LED {
             const bool m_is_rgbw;
 
             Color::Correction m_correction;
-            float m_brightness;
+            brightness_type m_brightness;
 
             uint m_sm;
             uint m_dma;

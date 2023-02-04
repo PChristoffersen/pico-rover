@@ -16,6 +16,12 @@ static constexpr uint SERVO1_PIN { 26 };
 static constexpr uint SERVO2_PIN { 27 };
 
 
+/* Camera tilt */
+static constexpr uint CAMERA_SERVO { 0u };
+static constexpr int CAMERA_LEVEL_PULSE { 2000 };
+static constexpr int CAMERA_UP_PULSE { 500 };
+
+
 /* RADIO */
 #define RADIO_RECEIVER_UART uart0
 static constexpr uint RADIO_RECEIVER_TX_PIN { 16 };

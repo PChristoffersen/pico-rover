@@ -94,14 +94,17 @@ void Sensor::update_calib()
 
 void Sensor::run()
 {
-    TickType_t last_time = xTaskGetTickCount();
-    TickType_t last_calib = last_time;
+    TickType_t current_time = xTaskGetTickCount();
+    TickType_t previous_time = current_time;
+    TickType_t last_calib = current_time;
     
     uint8_t data[3*sizeof(uint16_t)];
 
     while (true) {
+        xTaskDelayUntil(&current_time, pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
+
         i2c_bus_acquire_blocking();
-        if (xTaskGetTickCount()-last_calib > pdMS_TO_TICKS(CALI_INTERVAL_MS)) {
+        if (current_time-last_calib > pdMS_TO_TICKS(CALI_INTERVAL_MS)) {
             update_calib();
             last_calib = xTaskGetTickCount();
         }
@@ -114,8 +117,9 @@ void Sensor::run()
         m_roll    = static_cast<euler_type>(bno055_data_to_int16(data, BNO055_EULER_H_LSB_ADDR, BNO055_EULER_R_LSB_VALUER_REG))/BNO055_EULER_DIV_RAD;
         xSemaphoreGive(m_sem);
 
+        on_data(current_time-previous_time);
 
-        xTaskDelayUntil(&last_time, pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
+        previous_time = current_time;
     }
 }
 
@@ -188,7 +192,6 @@ void Sensor::init()
     write_reg8(BNO055_AXIS_MAP_SIGN_ADDR, reg);
 
 
-
     // Set units
     reg = 0x00;
     read_reg8(BNO055_UNIT_SEL_ADDR, reg);
@@ -197,6 +200,25 @@ void Sensor::init()
     bno055_set_masked(reg, BNO055_ACCEL_UNIT_MSQ, BNO055_ACCEL_UNIT_MSK, BNO055_ACCEL_UNIT_POS);
     bno055_set_masked(reg, BNO055_TEMP_UNIT_CELSIUS, BNO055_TEMP_UNIT_MSK, BNO055_TEMP_UNIT_POS);
     write_reg8(BNO055_UNIT_SEL_ADDR, reg);
+
+    // Gyro config
+    reg = 0x00;
+    read_reg8(BNO055_GYRO_CONFIG_ADDR, reg);
+    bno055_set_masked(reg, BNO055_GYRO_BW_116HZ, BNO055_GYRO_BW_MSK, BNO055_GYRO_BW_POS);
+    write_reg8(BNO055_GYRO_CONFIG_ADDR, reg);
+
+    // Accel config
+    reg = 0x00;
+    read_reg8(BNO055_ACCEL_CONFIG_ADDR, reg);
+    bno055_set_masked(reg, BNO055_ACCEL_BW_125HZ, BNO055_ACCEL_BW_MSK, BNO055_ACCEL_BW_POS);
+    write_reg8(BNO055_ACCEL_CONFIG_ADDR, reg);
+
+    // Mag config
+    reg = 0x00;
+    read_reg8(BNO055_MAG_CONFIG_ADDR, reg);
+    bno055_set_masked(reg, BNO055_MAG_DATA_OUTRATE_20HZ, BNO055_MAG_DATA_OUTPUT_RATE_MSK, BNO055_MAG_DATA_OUTPUT_RATE_MSK);
+    write_reg8(BNO055_MAG_CONFIG_ADDR, reg);
+
 
     write_reg8(BNO055_OPERATION_MODE_REG, BNO055_OPERATION_MODE_NDOF);
     busy_wait_ms(20);

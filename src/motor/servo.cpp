@@ -5,7 +5,6 @@
 #include <hardware/pwm.h>
 
 #include <util/debug.h>
-#include <util/locking.h>
 
 
 namespace Motor {
@@ -20,8 +19,6 @@ Servo::Servo(id_type id, uint pin, value_t initial) :
     m_enabled  { false },
     m_value { initial }
 {
-    m_mutex = xSemaphoreCreateBinaryStatic(&m_mutex_buf);
-    assert(m_mutex);
 }
 
 
@@ -52,8 +49,10 @@ void Servo::init()
 
 void Servo::set_enabled(bool enabled)
 {
-    SEMAPHORE_GUARD(m_mutex);
-    if (m_enabled==enabled) return;
+    LOCK_GUARD();
+    if (m_enabled==enabled) {
+        return;
+    }
     m_enabled = enabled;
     #ifndef DEBUG_USE_SERVO_PINS
     if (enabled) {
@@ -68,7 +67,7 @@ void Servo::set_enabled(bool enabled)
 
 void Servo::put(uint16_t us) 
 {
-    SEMAPHORE_GUARD(m_mutex);
+    LOCK_GUARD();
     if (m_value!=us) {
         m_value = us;
         if (m_enabled) {

@@ -12,11 +12,18 @@ namespace Motor {
 PIO  Encoder::m_pio = nullptr;
 uint Encoder::m_program_offset = 0;
 Encoder::array_type Encoder::m_encoders;
-absolute_time_t ABSOLUTE_TIME_INITIALIZED_VAR(Encoder::m_last_update, 0);
 
 StaticTask_t Encoder::m_task_buf;
 StackType_t Encoder::m_task_stack[TASK_STACK_SIZE];
 TaskHandle_t Encoder::m_task = nullptr;
+
+
+
+static inline double timediff_ms(TickType_t t0, TickType_t t1)
+{
+    assert(t1 >= t0);
+    return static_cast<double>(static_cast<uint32_t>(t1-t0) * 1000u / configTICK_RATE_HZ);
+}
 
 
 void Encoder::global_init() 
@@ -26,8 +33,6 @@ void Encoder::global_init()
         return;
 
     m_program_offset = pio_add_program(m_pio, &quadrature_encoder_program);
-
-    m_last_update = get_absolute_time();
 
     m_task = xTaskCreateStatic([](auto args){ Encoder::global_run(); }, "Encoder", TASK_STACK_SIZE, nullptr, ENCODER_TASK_PRIORITY, m_task_stack, &m_task_buf);
     assert(m_task);
@@ -50,9 +55,6 @@ Encoder::Encoder(id_type id, PIO pio, uint enca_pin, uint encb_pin, bool invert)
     if (m_pio==nullptr) {
         m_pio = pio;
     }
-    m_mutex = xSemaphoreCreateBinaryStatic(&m_mutex_buf);
-    assert(m_mutex);
-    xSemaphoreGive(m_mutex);
 }
 
 void Encoder::init()
@@ -80,15 +82,13 @@ inline void Encoder::fetch_request()
     quadrature_encoder_request_count(m_pio, m_sm); 
 }
 
-inline void Encoder::do_fetch()
+inline void Encoder::do_fetch(double diff_t)
 { 
     auto value = quadrature_encoder_fetch_count(m_pio, m_sm); 
     if (m_invert) {
         value = -value;
     }
 
-    auto now = get_absolute_time();
-    auto diff_t = absolute_time_diff_us(m_last_update, now);
     auto diff_v = value-m_value;
     auto rpm = m_rpm;
 
@@ -97,22 +97,20 @@ inline void Encoder::do_fetch()
         rpm = 0.0;
     }
     else if (diff_t>0) {
-        rpm = static_cast<double>(diff_v)*60.0*1000000.0 / static_cast<double>(diff_t) / SHAFT_CPR;
+        rpm = static_cast<double>(diff_v)*60.0*1000.0 / static_cast<double>(diff_t) / SHAFT_CPR;
         rpm = (rpm+m_rpm)/2.0;
     }
 
-    xSemaphoreTake(m_mutex, portMAX_DELAY);
+    lock();
     m_rpm = rpm;
     m_value = value;
-    xSemaphoreGive(m_mutex);
+    unlock();
 
-    m_callback(m_value, m_rpm);
-
-    m_value_last = now;
+    m_callback(*this, m_value, m_rpm);
 
     #if 0
-    if (m_rpm!=0.0) {
-        printf("Diff: %ld %ld / %lld   rpm=%.2f  %.2f    (%.2f)\n", value, diff_v, diff_t, m_rpm, m_rpm/WHEEL_RATIO, rdiff/WHEEL_RATIO);
+    if (m_id==0 && m_rpm!=0.0) {
+        printf("Diff: %ld %ld / %.2f   rpm=%.2f  %.2f\n", value, diff_v, diff_t, m_rpm, m_rpm/WHEEL_RATIO);
     }
     #endif
 
@@ -123,8 +121,13 @@ inline void Encoder::do_fetch()
 void Encoder::global_run()
 {
     TickType_t last_time = xTaskGetTickCount();
+    TickType_t prev_time = last_time;
 
     while (true) {
+        xTaskDelayUntil(&last_time, pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
+
+        auto time_diff = timediff_ms(prev_time, last_time);
+
         for (auto &encoder : m_encoders) {
             if (encoder!=nullptr) {
                 encoder->fetch_request();
@@ -132,11 +135,11 @@ void Encoder::global_run()
         }
         for (auto &encoder : m_encoders) {
             if (encoder!=nullptr) {
-                encoder->do_fetch();
+                encoder->do_fetch(time_diff);
             }
         }
 
-        xTaskDelayUntil(&last_time, pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
+        prev_time = last_time;
     }
 }
 

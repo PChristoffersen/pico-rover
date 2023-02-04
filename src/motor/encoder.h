@@ -15,17 +15,17 @@
 #include <rtos.h>
 
 #include <boardconfig.h>
-#include <util/locking.h>
+#include <util/lockable.h>
 #include <util/callback.h>
 
 namespace Motor {
 
-    class Encoder {
+    class Encoder : public Lockable {
         public:
             using value_type = int32_t;
             using id_type = uint;
             using rpm_type = double;
-            using callback_type = Callback<value_type,rpm_type>;
+            using callback_type = Callback<const Encoder&, value_type,rpm_type>;
 
             Encoder(id_type id, PIO pio, uint enca_pin, uint encb_pin, bool invert);
             Encoder(const Encoder&) = delete; // No copy constructor
@@ -35,8 +35,8 @@ namespace Motor {
 
             void init();
 
-            value_type get() const { SEMAPHORE_GUARD(m_mutex); return m_value; }
-            rpm_type rpm() const { SEMAPHORE_GUARD(m_mutex); return m_rpm; }
+            value_type get() const { return m_value; }
+            rpm_type rpm() const { return m_rpm; }
 
             void add_callback(callback_type::call_type cb) { m_callback.add(cb); }
 
@@ -55,8 +55,6 @@ namespace Motor {
             const bool m_invert;
             uint m_sm;
 
-            StaticSemaphore_t m_mutex_buf;
-            mutable SemaphoreHandle_t m_mutex;
             absolute_time_t m_value_last;
             value_type m_value;
             rpm_type m_rpm;
@@ -64,12 +62,11 @@ namespace Motor {
             callback_type m_callback;
 
             inline void fetch_request();
-            inline void do_fetch();
+            inline void do_fetch(double timediff);
 
             static PIO  m_pio;
             static uint m_program_offset;
             static array_type m_encoders;
-            static absolute_time_t m_last_update;
 
             static StaticTask_t m_task_buf;
             static StackType_t m_task_stack[TASK_STACK_SIZE];

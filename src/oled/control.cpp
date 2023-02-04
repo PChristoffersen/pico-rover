@@ -40,12 +40,8 @@ Control::Control(Robot &robot) :
     m_display { OLED_ADDRESS },
     m_framebuffer(m_display.framebuffer()),
     m_robot { robot },
-    m_sem { nullptr },
     m_task { nullptr }
 {
-    m_sem = xSemaphoreCreateMutexStatic(&m_sem_buf);
-    assert(m_sem);
-    xSemaphoreGive(m_sem);
 }
 
 

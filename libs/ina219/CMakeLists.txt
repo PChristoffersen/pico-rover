@@ -4,7 +4,9 @@ add_library(ina219 STATIC
 )
 target_include_directories(ina219 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/src
+)
+target_include_directories(ina219 PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
 )
 
 

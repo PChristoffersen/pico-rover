@@ -2,8 +2,6 @@
 
 Raspberry Pi Pico firmware for Pico-Rover
 
-# Requirements
-
-`arm-none-eabi` compiler
-
+![rendering](doc/rendering.jpg)
+![photo](doc/photo.jpg)
 

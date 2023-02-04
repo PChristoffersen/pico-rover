@@ -13,6 +13,7 @@
 #include <led/animation/headlights.h>
 
 #include <boardconfig.h>
+#include <util/lockable.h>
 #include "gpio_led.h"
 #include "cyw43_led.h"
 
@@ -20,7 +21,7 @@ class Robot;
 
 namespace LED {
 
-    class Control {
+    class Control : public Lockable {
         public:
             #ifdef RASPBERRYPI_PICO_W
             using led_type = CYW43Led;
@@ -57,6 +58,7 @@ namespace LED {
             void set_animation_mode(AnimationMode mode);
             void set_light_mode(LightMode mode);
             void set_indicator_mode(IndicatorMode mode);
+            void set_brightness(strip_type::brightness_type brightness);
 
 
             led_type &builtin() { return m_builtin; };
@@ -74,9 +76,6 @@ namespace LED {
             using light_type = Animation::Headlights<LED_STRIP_PIXEL_COUNT>;
             using indicator_type = Animation::Indicators<LED_STRIP_PIXEL_COUNT>;
             using indicator_layer_type = Color::Layer<Color::RGBA, LED_STRIP_PIXEL_COUNT>;
-
-            StaticSemaphore_t m_mutex_buf;
-            SemaphoreHandle_t m_mutex;
 
             StaticTask_t m_task_buf;
             StackType_t  m_task_stack[TASK_STACK_SIZE];
@@ -102,9 +101,11 @@ namespace LED {
             indicator_layer_type m_indicator_layer;
             IndicatorMode m_indicator_mode_set;
 
+            strip_type::brightness_type m_brightness_set;
+
             inline void run();
 
-            inline void update_modes(TickType_t now);
+            inline bool update_state(TickType_t now);
             inline void update_animation(TickType_t now);
             inline void draw_buffer();
 

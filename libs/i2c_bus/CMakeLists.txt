@@ -4,7 +4,9 @@ add_library(i2c_bus STATIC
 )
 target_include_directories(i2c_bus PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/src
+)
+target_include_directories(i2c_bus PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
 )
 
 

@@ -18,16 +18,10 @@ PicoADC::PicoADC(uint battery_pin, float battery_r1, float battery_r2) :
     m_battery_pin { battery_pin },
     m_battery_r1 { battery_r1 },
     m_battery_r2 { battery_r2 },
-
-    m_sem { nullptr },
-
     m_battery_voltage { 0.0f },
     m_vsys_voltage { 0.0f },
     m_temp { 0.0f }
 {
-    m_sem = xSemaphoreCreateMutexStatic(&m_sem_buf);
-    assert(m_sem);
-    xSemaphoreGive(m_sem);
 }
 
 
@@ -91,9 +85,9 @@ void PicoADC::_handle_battery(float adc_voltage)
     //printf("Battery: %f V  (%f)\n", voltage, adc_voltage);
 
     // Store value
-    xSemaphoreTake(m_sem, portMAX_DELAY);
+    lock();
     m_battery_voltage = voltage;
-    xSemaphoreGive(m_sem);
+    unlock();
 
     m_battery_cb(voltage);
 }
@@ -105,9 +99,9 @@ void PicoADC::_handle_vsys(float adc_voltage)
     //printf("VSys: %f V\n", voltage);
 
     // Store value
-    xSemaphoreTake(m_sem, portMAX_DELAY);
+    lock();
     m_vsys_voltage = voltage;
-    xSemaphoreGive(m_sem);
+    unlock();
 
     m_vsys_cb(voltage);
 }
@@ -118,9 +112,9 @@ void PicoADC::_handle_temp(float adc_voltage)
     //printf("Temp: %.1f C\n", tempC);
 
     // Store value
-    xSemaphoreTake(m_sem, portMAX_DELAY);
+    lock();
     m_temp = tempC;
-    xSemaphoreGive(m_sem);
+    unlock();
 
     m_temp_cb(tempC);
 }

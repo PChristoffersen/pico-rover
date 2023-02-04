@@ -16,11 +16,12 @@
 #include "encoder.h"
 
 #include <boardconfig.h>
+#include <util/lockable.h>
 #include <util/battery.h>
 
 namespace Motor {
 
-    class DCMotor {
+    class DCMotor : public Lockable {
         public: 
             using array_type = std::array<DCMotor, MOTOR_COUNT>;
             using id_type = uint;
@@ -73,9 +74,6 @@ namespace Motor {
             const bool m_invert;
 
             uint m_slice;
-
-            StaticSemaphore_t m_mutex_buf;
-            SemaphoreHandle_t m_mutex;
 
             bool m_enabled;
             float m_duty;

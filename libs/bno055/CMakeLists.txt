@@ -4,8 +4,11 @@ add_library(bno055 STATIC
 )
 target_include_directories(bno055 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/src
 )
+target_include_directories(bno055 PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+
 
 
 target_link_libraries(bno055

@@ -46,7 +46,6 @@ void Robot::init()
 
     for (auto &servo : m_servos) {
         servo.init();
-        servo.set_enabled(true);
     }
     for (auto &motor : m_motors) {
         motor.init();
@@ -69,7 +68,7 @@ void Robot::init()
         }
     });
 
-    m_receiver.add_callback([this](const auto &channels, const auto &mapping){
+    m_receiver.add_callback([this](const auto &receiver, const auto &channels, const auto &mapping){
         auto connected = channels.sync() && !channels.flags().frameLost();
         if (m_connected!=connected) {
             m_connected = connected;
@@ -78,6 +77,8 @@ void Robot::init()
         }
     });
 
+    // Misc
+    camera().put(CAMERA_LEVEL_PULSE);
 }
 
 
@@ -95,14 +96,16 @@ void Robot::start()
     m_imu.start();
     m_receiver.start();
 
-
 }
 
 
 void Robot::set_armed(bool armed) 
 {
+
     if (armed==m_armed) 
         return ;
+
+    printf("Armed: %d\n", m_armed);
 
     m_armed = armed;
     if (m_armed) {

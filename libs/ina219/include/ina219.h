@@ -36,8 +36,6 @@ namespace INA219 {
 
             bool present() const { return m_present; }
 
-            absolute_time_t update();
-
             void lock() const 
             {
                 xSemaphoreTake(m_sem, portMAX_DELAY);

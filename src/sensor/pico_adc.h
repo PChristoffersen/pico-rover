@@ -10,14 +10,13 @@
 
 #include <functional>
 #include <pico/stdlib.h>
-#include <pico/mutex.h>
 #include <rtos.h>
-#include <util/locking.h>
+#include <util/lockable.h>
 #include <util/callback.h>
 
 namespace Sensor {
 
-    class PicoADC {
+    class PicoADC : public Lockable {
         public:
             using callback_type = Callback<float>;
 
@@ -28,9 +27,9 @@ namespace Sensor {
             void init();
             void start();
 
-            float get_battery() const { SEMAPHORE_GUARD(m_sem); return m_battery_voltage; }
-            float get_vsys() const    { SEMAPHORE_GUARD(m_sem); return m_vsys_voltage; }
-            float get_temp() const    { SEMAPHORE_GUARD(m_sem); return m_temp; }
+            float get_battery() const { return m_battery_voltage; }
+            float get_vsys() const    { return m_vsys_voltage; }
+            float get_temp() const    { return m_temp; }
 
             void add_battery_cb(callback_type::call_type cb) { m_battery_cb.add(cb); }
             void add_vsys_cb(callback_type::call_type cb) { m_vsys_cb.add(cb); }
@@ -50,9 +49,6 @@ namespace Sensor {
             const uint m_battery_pin;
             const float m_battery_r1;
             const float m_battery_r2;
-
-            StaticSemaphore_t m_sem_buf;
-            SemaphoreHandle_t m_sem;
 
             StaticTask_t m_task_buf;
             StackType_t  m_task_stack[TASK_STACK_SIZE];

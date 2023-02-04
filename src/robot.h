@@ -39,6 +39,7 @@ class Robot {
         // Motors and servos
         Motor::Servo::array_type   &servos() { return m_servos; }
         Motor::DCMotor::array_type &motors() { return m_motors; }
+        Motor::Servo &camera() { return m_servos[CAMERA_SERVO]; }
 
         // Radio
         Radio::Receiver &receiver() { return m_receiver; }

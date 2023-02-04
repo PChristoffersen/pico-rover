@@ -8,7 +8,6 @@
 #include <hardware/clocks.h>
 
 #include "../boardconfig.h"
-#include <util/locking.h>
 #include <util/battery.h>
 
 namespace Motor {
@@ -28,9 +27,6 @@ DCMotor::DCMotor(id_type id, uint in1_pin, uint in2_pin, PIO enc_pio, uint enca_
     m_duty { 0.0f },
     m_encoder { id, enc_pio, enca_pin, encb_pin, invert }
 {
-    m_mutex = xSemaphoreCreateBinaryStatic(&m_mutex_buf);
-    assert(m_mutex);
-    xSemaphoreGive(m_mutex);
 }
 
 
@@ -162,8 +158,8 @@ void DCMotor::update_duty()
 
 void DCMotor::set_enabled(bool enabled)
 {
-    SEMAPHORE_GUARD(m_mutex);
-
+    LOCK_GUARD();
+    
     if (m_enabled==enabled) 
         return;
 
@@ -188,7 +184,7 @@ void DCMotor::set_enabled(bool enabled)
 
 void DCMotor::set_duty(duty_type duty)
 {
-    SEMAPHORE_GUARD(m_mutex);
+    LOCK_GUARD();
 
     duty = std::clamp(duty, -1.0f, 1.0f);
     if (m_invert) {

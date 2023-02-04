@@ -7,7 +7,8 @@ set(CMAKE_CXX_STANDARD 17)
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
 #set(PICO_SDK_PATH "/opt/pico/pico-sdk")
-#set(FREERTOS_KERNEL_PATH "/opt/pico/FreeRTOS-Kernel-SMP")
+#set(PICO_SDK_FETCH_FROM_GIT on)
+set(FREERTOS_KERNEL_PATH "/opt/pico/FreeRTOS-Kernel-SMP")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(cmake/pico_sdk_import.cmake)
@@ -59,6 +60,7 @@ add_executable(${PROJECT_NAME}
     src/sensor/pico_adc.cpp
     src/telemetry/provider.cpp
     src/util/debug.cpp
+    src/util/lockable.cpp
     src/watchdog/watchdog.cpp
     src/ros/client.cpp
     src/ros/hal.c
@@ -86,6 +88,7 @@ else()
 endif()
 
 
+target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/src)
 #target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
 

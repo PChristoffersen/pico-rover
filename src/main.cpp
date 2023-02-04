@@ -98,6 +98,7 @@ static void main_task(__unused void *params)
                 break;
             case 1: 
                 {
+                    //servos[0].put(500);
                 }
                 break;
             case 2: 
@@ -109,6 +110,7 @@ static void main_task(__unused void *params)
             case 3: 
                 {
                     //robot.imu().print();
+                    //servos[0].put(2500);
                 }
                 break;
         }
@@ -189,9 +191,12 @@ static void print_banner()
 
 static void init() 
 {
+    static bool stabilize_camera = false;
+
+
     #if 1
     // Register callbacks
-    robot.receiver().add_callback([](auto &channels, auto &mapping){
+    robot.receiver().add_callback([](auto &receiver, auto &channels, auto &mapping){
         if (!channels.sync() || channels.flags().frameLost()) {
             robot.set_armed(false);
             return;
@@ -202,11 +207,12 @@ static void init()
             auto &servos = robot.servos();
             //servos[0].put(mapping.right_y().asServoPulse());
             //servos[1].put(mapping.right_x().asServoPulse());
-            servos[0].put((-mapping.s1()).asServoPulse());
-            servos[1].put((-mapping.s2()).asServoPulse());
+            //servos[0].put((-mapping.s1()).asServoPulse());
+            servos[1].put((-mapping.s1()).asServoPulse());
             drive_wheels(mapping.right_x().asFloat(), mapping.right_y().asFloat(), mapping.left_x().asFloat());
         }
 
+        // LEDS
         auto &leds = robot.leds();
         switch (mapping.sc()) {
             case Radio::Toggle::P0:
@@ -244,9 +250,37 @@ static void init()
                     break;
             }
         }
+        leds.set_brightness(mapping.s2().asPercent());
+
+        // Camera
+
+        switch (mapping.sa()) {
+            case Radio::Toggle::P0:
+                stabilize_camera = false;
+                robot.camera().put(CAMERA_LEVEL_PULSE);
+                break;
+            case Radio::Toggle::P1:
+                stabilize_camera = false;
+                robot.camera().put(mapping.slider_l().asServoPulse());
+                break;
+            case Radio::Toggle::P2:
+                stabilize_camera = true;
+                break;
+        }
     });
     #endif
 
+    #if 1
+    robot.imu().add_callback([](auto &imu, auto tick_delta){
+        //printf("IMU: %f %f %f\n", heading, pitch, roll);
+        if (stabilize_camera) {
+            auto pitch = imu.pitch();
+            Motor::Servo::value_t pulse = std::clamp<Motor::Servo::value_t>(CAMERA_LEVEL_PULSE+(CAMERA_LEVEL_PULSE-CAMERA_UP_PULSE)*pitch/M_PI_2, Motor::Servo::PULSE_MIN, Motor::Servo::PULSE_MAX);
+            robot.camera().put(pulse);
+            //printf("IMU: %.2f  %.2f  %u    %d %d %d\n", pitch, pitch/M_PI_2, pulse, (int)imu.mag_calib(), (int)imu.accel_calib(), (int)imu.gyro_calib());
+        }
+    });
+    #endif
 
     #if 0
     robot.receiver()_listener.add_callback([](auto &channels, auto &mapping){
@@ -280,11 +314,8 @@ static void init()
 
 static void vLaunch() 
 {
-    printf("%s:%d\n", __PRETTY_FUNCTION__, __LINE__);
     xTaskCreate(main_task, "Main", configMINIMAL_STACK_SIZE, nullptr, TEST_TASK_PRIORITY, nullptr);
-    printf("%s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 
-    printf("%s:%d\n", __PRETTY_FUNCTION__, __LINE__);
     /* Start the tasks and timer running. */
     printf("Starting scheduler\n");
     vTaskStartScheduler();

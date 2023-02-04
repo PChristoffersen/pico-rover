@@ -19,6 +19,7 @@ namespace BNO055 {
         public:
             using addr_type = uint8_t;
             using euler_type = float;
+            using calib_type = uint8_t;
 
             enum Address: addr_type {
                 PRIMARY   = 0x28,
@@ -49,13 +50,22 @@ namespace BNO055 {
             euler_type pitch() const   { return m_pitch; }
             euler_type roll() const    { return m_roll; }
 
+            calib_type mag_calib() const { return m_mag_calib; }
+            calib_type accel_calib() const { return m_accel_calib; }
+            calib_type gyro_calib() const { return m_gyro_calib; }
+
+
             #ifndef NDEBUG
             void print() const;
             #endif
 
+        protected:
+
+            virtual void on_data(TickType_t tick_delta) {}
+
         private:
             static constexpr uint    TASK_STACK_SIZE    { configMINIMAL_STACK_SIZE };
-            static constexpr int64_t UPDATE_INTERVAL_MS { 25u };
+            static constexpr int64_t UPDATE_INTERVAL_MS { 20u };
             static constexpr int64_t CALI_INTERVAL_MS { 500ll };
 
             static constexpr uint32_t RESET_DELAY_MS { 650 };
@@ -69,9 +79,9 @@ namespace BNO055 {
             uint8_t m_bl_rev;
 
             uint8_t m_page_id;
-            uint8_t m_mag_calib;
-            uint8_t m_accel_calib;
-            uint8_t m_gyro_calib;
+            calib_type m_mag_calib;
+            calib_type m_accel_calib;
+            calib_type m_gyro_calib;
 
             StaticSemaphore_t m_sem_buf;
             SemaphoreHandle_t m_sem;

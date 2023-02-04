@@ -6,7 +6,7 @@ namespace Radio {
 void Receiver::on_data(const channels_type &channels)
 {
     m_mapping.set(channels);
-    m_control_callback(channels, m_mapping);
+    m_control_callback(*this, channels, m_mapping);
 }
 
 Telemetry Receiver::get_next_telemetry() 
